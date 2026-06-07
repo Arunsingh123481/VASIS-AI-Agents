@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Environment files
+.env
+
+# Cache and local IDE configurations
+.idea/
+.vscode/
+.pageindex_cache/
+*.log
+*.txt
+*.resolved
+sessions_db.json
+stress_test_results.json
+uploads/
