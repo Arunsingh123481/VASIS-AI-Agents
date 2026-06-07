@@ -374,12 +374,23 @@ def execute_smart(question: str,
     is_bib   = routing["is_bibliography"]
     use_full = routing["use_full_document"]
 
+    # Build display list: agent12 only shows when paper/guide query
+    _a12_active = query_type in ("paper_writing", "implementation_guide")
+    _display_running = [
+        a for a in (required + optional)
+        if a != "agent12_websearch"
+    ]
+    if _a12_active:
+        _display_running.append("agent12_websearch")
+    _display_skipping = list(skipped)
+    if not _a12_active and "agent12_websearch" not in _display_skipping:
+        _display_skipping.append("agent12_websearch (paper/guide only)")
+
     print(f"\n{'='*50}")
     print(f"[Agent10] Query type: {query_type.upper()}")
-    print(f"[Agent10] Running: {required + optional}")
-    print(f"[Agent10] Skipping: {skipped}")
-    print(f"[Agent10] Est. time: "
-          f"~{routing['estimated_secs']}s")
+    print(f"[Agent10] Running: {_display_running}")
+    print(f"[Agent10] Skipping: {_display_skipping}")
+    print(f"[Agent10] Est. time: ~{routing['estimated_secs']}s")
     print(f"{'='*50}\n")
 
     # ── STEP 2: WARM START ────────────────────────────────

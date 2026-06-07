@@ -36,22 +36,29 @@ def retrieve(
     # orchestrator can emit a grounded "no formal bibliography found" answer
     # instead of hallucinating references from figure-caption numbers.
     if routed and (routed.get("is_bibliography_query") or routed.get("is_bibliography")):
+        import re as _re_bib
+        # Only match section *titles* that are clearly labelled as a reference list.
+        # "literature" is intentionally excluded — it matches "literature review" nodes.
+        # We use word-boundary matching to avoid catching "references" inside longer phrases.
         BIB_TITLE_KEYWORDS = {
             "references", "bibliography", "works cited", "reference list",
-            "citations", "cited works", "literature"
+            "citations", "cited works"
         }
+        BIB_TITLE_RE = _re_bib.compile(
+            r'\b(' + '|'.join(_re_bib.escape(k) for k in BIB_TITLE_KEYWORDS) + r')\b',
+            _re_bib.IGNORECASE
+        )
 
-        # ── Tier 1: Tree node title/summary/topics keyword scan ─────────────
+        # ── Tier 1: Tree node TITLE-only keyword scan ────────────────────────
+        # Scan ALL nodes and take the LAST match.
+        # Real reference sections are always at the end of academic papers.
+        # Taking the first match would incorrectly select "Related Work" or
+        # "Past Reviews" sections whose *summaries* mention literature/references.
         bib_node = None
         for node in tree:
-            node_text = " ".join([
-                node.get("title", ""),
-                node.get("summary", ""),
-                " ".join(node.get("key_topics", []))
-            ]).lower()
-            if any(kw in node_text for kw in BIB_TITLE_KEYWORDS):
-                bib_node = node
-                break  # take the first (and usually only) match
+            title_only = node.get("title", "")  # only check the section title
+            if BIB_TITLE_RE.search(title_only):
+                bib_node = node  # keep updating → last match wins
 
         if bib_node:
             bib_atoms = atom_store.get_in_page_range(bib_node["start_page"], bib_node["end_page"])

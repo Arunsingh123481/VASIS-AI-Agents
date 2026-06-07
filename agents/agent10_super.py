@@ -10,7 +10,8 @@ from config import MAX_REQUERY_ATTEMPTS, MODE
 from console_helper import print_msg
 from agent_routing_rules import (
     AGENT10_REVIEW_RULES,
-    ROUTING_RULES
+    ROUTING_RULES,
+    QUERY_DETECTION_PATTERNS
 )
 
 @dataclass
@@ -396,7 +397,8 @@ Return JSON:
             "abort_reason":  plan.abort_reason
         }
 
-    def execute(self, question: str, doc_id: str = "", forced_query_type: str = None) -> dict:
+    def execute(self, question: str, doc_id: str = "", forced_query_type: str = None,
+                 venue: str = None, article_type: str = None, researcher_level: str = None) -> dict:
         """
         Smart routing execute function.
         Replaces the original execute() in agent10_super.py
@@ -454,10 +456,22 @@ Return JSON:
         is_bib   = routing["is_bibliography"]
         use_full = routing["use_full_document"]
 
+        # Build display list: agent12 only shows when paper/guide query
+        _a12_active = query_type in ("paper_writing", "implementation_guide")
+        _display_running = [
+            a for a in (required + optional)
+            if a != "agent12_websearch"
+        ]
+        if _a12_active:
+            _display_running.append("agent12_websearch")
+        _display_skipping = list(skipped)
+        if not _a12_active and "agent12_websearch" not in _display_skipping:
+            _display_skipping.append("agent12_websearch (paper/guide only)")
+
         print_msg(f"\n{'='*50}")
         print_msg(f"[Agent10] Query type: {query_type.upper()}")
-        print_msg(f"[Agent10] Running: {required + optional}")
-        print_msg(f"[Agent10] Skipping: {skipped}")
+        print_msg(f"[Agent10] Running: {_display_running}")
+        print_msg(f"[Agent10] Skipping: {_display_skipping}")
         print_msg(f"[Agent10] Est. time: ~{routing['estimated_secs']}s")
         print_msg(f"{'='*50}\n")
 
@@ -1129,25 +1143,41 @@ Return JSON:
         # ── STEP 15: AGENT 12 — WEB SEARCH ───────────────────
         t0 = time.time()
 
+        # Check if paper writing or implementation guide is requested via keywords
+        is_paper_writing_requested = (query_type == "paper_writing") or (
+            query_type == "deep_research" and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
+        )
+        is_impl_guide_requested = (query_type == "implementation_guide") or (
+            query_type == "deep_research" and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
+        )
+
         if is_needed("agent12_websearch"):
             should_search = (
-                calibration["calibrated_score"] <
-                0.70 and
-                synthesis.get("novel_connections")
+                is_paper_writing_requested or
+                is_impl_guide_requested
             )
             if should_search and a12 is not None:
                 try:
-                    gap_desc = " ".join([
-                        f"{n.get('from','')} "
-                        f"to {n.get('to','')}"
-                        for n in synthesis[
-                            "novel_connections"
-                        ][:1]
-                    ])
-                    web_result = a12.search_and_solve(
-                        gap_desc,
-                        synthesis["novel_connections"]
-                    )
+                    # When paper/guide is requested, search using the topic directly
+                    # instead of the gap_desc derived from novel_connections (which may be empty)
+                    if is_paper_writing_requested or is_impl_guide_requested:
+                        search_topic = question
+                        web_result = a12.search_and_solve(
+                            search_topic,
+                            synthesis.get("novel_connections", [])
+                        )
+                    else:
+                        gap_desc = " ".join([
+                            f"{n.get('from','')} "
+                            f"to {n.get('to','')}"
+                            for n in synthesis[
+                                "novel_connections"
+                            ][:1]
+                        ])
+                        web_result = a12.search_and_solve(
+                            gap_desc,
+                            synthesis["novel_connections"]
+                        )
                     record("agent12_websearch",
                            web_result, "A", 0.85,
                            time.time()-t0)
@@ -1164,33 +1194,36 @@ Return JSON:
 
         # ── STEP 15b: AGENT 13 — PAPER WRITER ─────────────────
         paper_result = None
-        if query_type == "paper_writing" and a13 is not None:
+        # We check is_paper_writing_requested computed during web search step
+        if is_paper_writing_requested and a13 is not None:
             t0 = time.time()
             print_msg("\n[Agent10] → Dispatching Agent 13 (Paper Writer)...")
             try:
-                # Parse venue and article type from query
-                venue = "IEEE"
-                article_type = "research_article"
+                # Use venue/article_type passed from chat mode; fall back to query keyword parsing
+                _venue = venue or "IEEE"
+                _article_type = article_type or "research_article"
                 q_lower = question.lower()
-                for v in ["neurips", "icml", "iclr", "acm",
-                          "springer", "elsevier", "dsj"]:
-                    if v in q_lower:
-                        venue = v.upper()
-                        break
-                for at in ["review_article", "short_communication",
-                           "systematic_review", "perspective_article",
-                           "technical_note", "case_study",
-                           "letter_to_editor"]:
-                    if at.replace("_", " ") in q_lower:
-                        article_type = at
-                        break
-                if "review" in q_lower and article_type == "research_article":
-                    article_type = "review_article"
+                if not venue:
+                    for v in ["neurips", "icml", "iclr", "acm",
+                              "springer", "elsevier", "dsj"]:
+                        if v in q_lower:
+                            _venue = v.upper()
+                            break
+                if not article_type:
+                    for at in ["review_article", "short_communication",
+                               "systematic_review", "perspective_article",
+                               "technical_note", "case_study",
+                               "letter_to_editor"]:
+                        if at.replace("_", " ") in q_lower:
+                            _article_type = at
+                            break
+                    if "review" in q_lower and _article_type == "research_article":
+                        _article_type = "review_article"
 
                 paper_result = a13.write_paper(
                     topic=question,
-                    venue=venue,
-                    article_type=article_type,
+                    venue=_venue,
+                    article_type=_article_type,
                     narrative=final_narrative,
                     atom_ids=unique_atom_ids,
                     web_evidence=web_result or {"sources": []},
@@ -1209,7 +1242,8 @@ Return JSON:
 
         # ── STEP 15c: AGENT 14 — IMPLEMENTATION GUIDE ─────────
         impl_result = None
-        if query_type == "implementation_guide" and a14 is not None:
+        # We check is_impl_guide_requested computed during web search step
+        if is_impl_guide_requested and a14 is not None:
             t0 = time.time()
             print_msg("\n[Agent10] → Dispatching Agent 14 (Implementation Guide)...")
             try:
@@ -1222,11 +1256,16 @@ Return JSON:
                         "novel_connections", []
                     ),
                     paper_result=paper_result,
+                    researcher_level=researcher_level or "masters",
                 )
                 record("agent14_impl_guide", impl_result,
                        "A", 0.90, time.time()-t0)
-                # Override answer with the guide text
-                answer = impl_result.get("full_text", answer)
+                # Stitch results if both paper and guide were requested/generated
+                if paper_result is not None:
+                    answer = f"# Research Paper & Implementation Guide\n\n{paper_result.get('full_text', '')}\n\n---\n\n{impl_result.get('full_text', '')}"
+                else:
+                    # Override answer with the guide text
+                    answer = impl_result.get("full_text", answer)
             except Exception as e:
                 print_msg(f"[Agent10] agent14 error: {e}")
                 record("agent14_impl_guide", None,

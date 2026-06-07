@@ -89,7 +89,7 @@ def _breakdown_innovation(
         pass
 
     return {
-        "innovation_name":       innovation[:50],
+        "innovation_name":       innovation[:80],
         "core_idea":             innovation,
         "problem_solved":        "See vault papers",
         "novelty_claim":         "Novel combination",
@@ -439,7 +439,8 @@ def guide_implementation(
 
     print_msg(f"\n{'='*60}")
     print_msg(f"[Agent14] IMPLEMENTATION GUIDE")
-    print_msg(f"[Agent14] Innovation: {innovation[:50]}")
+    _innov_display = innovation if len(innovation) <= 80 else innovation[:77] + "..."
+    print_msg(f"[Agent14] Innovation: {_innov_display}")
     print_msg(f"[Agent14] Level: {researcher_level}")
     print_msg(f"[Agent14] Web sources: {len(web_sources)}")
     print_msg(f"{'='*60}\n")
@@ -454,7 +455,7 @@ def guide_implementation(
         innovation, narrative, web_sources
     )
     timings["breakdown"] = round(time.time() - t, 1)
-    name = guide["breakdown"].get("innovation_name", innovation[:40])
+    name = guide["breakdown"].get("innovation_name", innovation[:60])
     print_msg(f"[Agent14] Innovation: {name}")
 
     # ── 2. ARCHITECTURE ──────────────────────────────────

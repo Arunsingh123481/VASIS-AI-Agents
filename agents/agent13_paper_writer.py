@@ -322,7 +322,8 @@ def write_paper(
 
     print_msg(f"\n{'='*60}")
     print_msg(f"[Agent13] RESEARCH PAPER WRITER")
-    print_msg(f"[Agent13] Topic: {topic[:50]}")
+    _topic_display = topic if len(topic) <= 80 else topic[:77] + "..."
+    print_msg(f"[Agent13] Topic: {_topic_display}")
     print_msg(f"[Agent13] Venue: {venue} ({template.get('full_name', '')})")
     print_msg(f"[Agent13] Type: {config['label']}")
     print_msg(f"[Agent13] Word limit: {config['word_limit']}")

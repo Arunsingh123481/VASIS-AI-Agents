@@ -6,7 +6,9 @@ Supports interactive chat mode, single queries, index inspection, and detailed m
 import click
 import json
 import os
+import re
 import sys
+from datetime import datetime
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
@@ -14,6 +16,59 @@ from rich.table import Table
 from config import DEFAULT_MODEL
 
 console = Console()
+
+# ── OUTPUT DIRECTORY (for Agent 13 papers + Agent 14 guides) ──────────────────
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
+
+
+def _save_agent_output(
+    content: str,
+    agent_name: str,
+    topic: str,
+    venue: str = None,
+    article_type: str = None,
+    researcher_level: str = None,
+) -> str:
+    """
+    Save Agent 13 (paper) or Agent 14 (guide) output to outputs/ as a .md file.
+    Returns the full file path.
+    """
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    # Sanitise topic for filename — use up to 60 chars so long queries aren't cut off
+    safe_topic = re.sub(r'[^\w\s-]', '', topic[:60]).strip()
+    safe_topic = re.sub(r'[\s]+', '_', safe_topic).lower()
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if agent_name == "paper":
+        venue_tag   = f"_{venue.lower()}" if venue else ""
+        type_tag    = f"_{article_type.replace('_', '')}" if article_type else ""
+        filename    = f"paper{venue_tag}{type_tag}_{safe_topic}_{timestamp}.md"
+        title_line  = f"# Research Paper — {topic}\n"
+        meta_block  = (
+            f"**Venue:** {venue or 'Unknown'}  \n"
+            f"**Article Type:** {(article_type or 'research_article').replace('_', ' ').title()}  \n"
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}  \n\n"
+            f"---\n\n"
+        )
+    else:
+        level_tag  = f"_{researcher_level}" if researcher_level else ""
+        filename   = f"guide{level_tag}_{safe_topic}_{timestamp}.md"
+        title_line = f"# Implementation Guide — {topic}\n"
+        meta_block = (
+            f"**Level:** {(researcher_level or 'masters').title()}  \n"
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}  \n\n"
+            f"---\n\n"
+        )
+
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(title_line)
+        f.write(meta_block)
+        f.write(content)
+
+    return filepath
 
 
 @click.group()
@@ -117,6 +172,7 @@ def chat(pdf_path, model, top_k, passes):
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from pipeline import PageIndexREMSE
+    from agent_routing_rules import QUERY_DETECTION_PATTERNS
 
     rag = PageIndexREMSE(model=model)
     rag.ingest(pdf_path)
@@ -128,6 +184,15 @@ def chat(pdf_path, model, top_k, passes):
         "Commands: [bold]tree[/bold] = show index | [bold]stats[/bold] = show stats | [bold]quit[/bold] = exit",
         title="Chat Mode"
     ))
+
+    # Available options for interactive prompting
+    VENUES = ["IEEE", "NeurIPS", "ICML", "ICLR", "ACM", "Springer", "Elsevier"]
+    ARTICLE_TYPES = [
+        "research_article", "review_article", "systematic_review",
+        "short_communication", "perspective_article", "technical_note",
+        "case_study", "letter_to_editor"
+    ]
+    RESEARCHER_LEVELS = ["beginner", "masters", "phd"]
 
     while True:
         try:
@@ -148,17 +213,94 @@ def chat(pdf_path, model, top_k, passes):
                 _print_stats(rag.get_stats())
                 continue
 
+            # ── Detect if paper writing or implementation guide is requested ──
+            q_lower = question.lower()
+            is_paper = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
+            is_guide = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
+
+            venue = None
+            article_type = None
+            researcher_level = None
+
+            if is_paper:
+                console.print("\n[bold yellow]📄 Research Paper Writing Mode detected![/bold yellow]")
+                console.print("[dim]Please answer a few quick questions to customise your paper:[/dim]\n")
+
+                # Ask for venue
+                console.print("[bold]Target Venue / Journal:[/bold]")
+                for i, v in enumerate(VENUES, 1):
+                    console.print(f"  [{i}] {v}")
+                v_choice = Prompt.ask("Select venue number (or press Enter for IEEE)", default="1")
+                try:
+                    venue = VENUES[int(v_choice) - 1]
+                except (ValueError, IndexError):
+                    venue = "IEEE"
+
+                # Ask for article type
+                console.print("\n[bold]Article Type:[/bold]")
+                for i, at in enumerate(ARTICLE_TYPES, 1):
+                    console.print(f"  [{i}] {at.replace('_', ' ').title()}")
+                at_choice = Prompt.ask("Select article type number (or press Enter for Research Article)", default="1")
+                try:
+                    article_type = ARTICLE_TYPES[int(at_choice) - 1]
+                except (ValueError, IndexError):
+                    article_type = "research_article"
+
+                console.print(f"\n[green]✓ Writing a [bold]{article_type.replace('_', ' ').title()}[/bold] for [bold]{venue}[/bold][/green]\n")
+
+            if is_guide:
+                console.print("\n[bold yellow]🔧 Implementation Guide Mode detected![/bold yellow]")
+                console.print("[dim]Please answer a quick question to personalise your guide:[/dim]\n")
+
+                # Ask for researcher level
+                console.print("[bold]Your Researcher Level:[/bold]")
+                for i, lv in enumerate(RESEARCHER_LEVELS, 1):
+                    console.print(f"  [{i}] {lv.title()}")
+                lv_choice = Prompt.ask("Select level number (or press Enter for Masters)", default="2")
+                try:
+                    researcher_level = RESEARCHER_LEVELS[int(lv_choice) - 1]
+                except (ValueError, IndexError):
+                    researcher_level = "masters"
+
+                console.print(f"\n[green]✓ Generating guide for [bold]{researcher_level.title()}[/bold] level researcher[/green]\n")
+
             result = rag.query(
                 question,
                 top_k_anchors=top_k,
                 expansion_passes=passes,
-                show_provenance=True
+                show_provenance=True,
+                venue=venue,
+                article_type=article_type,
+                researcher_level=researcher_level
             )
+
+            # ── Auto-save Agent 13 / 14 outputs ─────────────────────────────
+            paper_result = result.get("paper_result")
+            impl_result  = result.get("impl_result")
+
+            if paper_result and paper_result.get("full_text"):
+                saved_path = _save_agent_output(
+                    content=paper_result["full_text"],
+                    agent_name="paper",
+                    topic=question,
+                    venue=venue,
+                    article_type=article_type,
+                )
+                console.print(f"\n[bold green]📄 Paper saved →[/bold green] [cyan]{saved_path}[/cyan]")
+
+            if impl_result and impl_result.get("full_text"):
+                saved_path = _save_agent_output(
+                    content=impl_result["full_text"],
+                    agent_name="guide",
+                    topic=question,
+                    researcher_level=researcher_level,
+                )
+                console.print(f"\n[bold green]🔧 Guide saved →[/bold green] [cyan]{saved_path}[/cyan]")
 
             # Display advanced CRDB metrics in chat mode too
             console.print(f"\n[bold cyan]--- CRDB Engine Analysis ---[/bold cyan]")
             console.print(f"  [bold]TRUST LEVEL[/bold]: [bold green]{result.get('trust_level', 'low').upper()}[/bold green] ({result.get('confidence', 0.0)}) | [bold]GRADE[/bold]: [bold yellow]{result.get('pipeline_grade', 'F')}[/bold yellow]")
-            
+
             if result.get("contradictions_found"):
                 console.print(f"  [bold red][WARNING] CONTRADICTIONS DETECTED![/bold red] Severity details shown above.")
             if result.get("novel_connections"):
@@ -169,6 +311,7 @@ def chat(pdf_path, model, top_k, passes):
             break
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
+
 
 
 @cli.command()
@@ -195,6 +338,31 @@ def history(pdf_path):
         pages = entry.get("provenance", {}).get("pages_referenced", [])
         if pages:
             console.print(f"  Pages: {pages}")
+
+
+@cli.command()
+def list():
+    """List all indexed documents in the local cache vault."""
+    import os
+    from storage.store import STORAGE_DIR
+    if not os.path.exists(STORAGE_DIR) or not os.listdir(STORAGE_DIR):
+        console.print("[yellow]No indexed documents found in the local cache vault.[/yellow]")
+        return
+
+    table = Table(title="Indexed Documents in Local Cache Vault")
+    table.add_column("Doc ID", style="cyan")
+    table.add_column("Index Files", style="green")
+    table.add_column("Cache Size", style="magenta")
+
+    for doc_id in sorted(os.listdir(STORAGE_DIR)):
+        doc_dir = os.path.join(STORAGE_DIR, doc_id)
+        if os.path.isdir(doc_dir):
+            files = os.listdir(doc_dir)
+            files_str = ", ".join(files)
+            total_size = sum(os.path.getsize(os.path.join(doc_dir, f)) for f in files if os.path.isfile(os.path.join(doc_dir, f)))
+            table.add_row(doc_id, files_str, f"{total_size / 1024:.1f} KB")
+            
+    console.print(table)
 
 
 def _check_pdf(pdf_path: str) -> None:

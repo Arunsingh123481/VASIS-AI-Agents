@@ -117,7 +117,10 @@ class PageIndexREMSE:
         show_provenance: bool = True,
         save_result: bool = True,
         generate_answer: bool = True,
-        forced_query_type: str = None
+        forced_query_type: str = None,
+        venue: str = None,
+        article_type: str = None,
+        researcher_level: str = None
     ) -> Dict:
         """
         Run a full query through the advanced 11-agent CRDB pipeline.
@@ -156,7 +159,14 @@ class PageIndexREMSE:
             feedback_index=feedback
         )
 
-        result = super_agent.execute(question, doc_id=self.doc_id, forced_query_type=forced_query_type)
+        result = super_agent.execute(
+            question,
+            doc_id=self.doc_id,
+            forced_query_type=forced_query_type,
+            venue=venue,
+            article_type=article_type,
+            researcher_level=researcher_level
+        )
 
         # Handle aborted pipeline gracefully
         if result.get("aborted", False):
