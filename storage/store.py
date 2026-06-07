@@ -163,3 +163,26 @@ def load_note_cards(doc_id: str) -> List[Dict]:
                     continue
     return cards
 
+
+def delete_index(doc_id: str) -> bool:
+    """
+    Delete the entire cached index directory for a document.
+    Removes tree.json, atoms.json, triples.json, query_log.jsonl,
+    note_cards.jsonl, and any other files under .pageindex_cache/<doc_id>/.
+    
+    Returns True if the directory was found and deleted, False otherwise.
+    """
+    import shutil
+
+    path = os.path.join(STORAGE_DIR, doc_id)
+    if os.path.exists(path):
+        try:
+            shutil.rmtree(path)
+            print_msg(f"[yellow]Deleted cached index for doc_id={doc_id}[/yellow]")
+            return True
+        except Exception as e:
+            print_msg(f"[red]Failed to delete index for doc_id={doc_id}: {e}[/red]")
+            return False
+    return False
+
+

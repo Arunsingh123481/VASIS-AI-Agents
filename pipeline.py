@@ -12,7 +12,7 @@ import json
 import os
 from typing import Dict, Optional
 
-from ingest.pdf_loader import load_pdf, get_pdf_metadata
+from ingest.pdf_loader import load_pdf, load_document, get_pdf_metadata
 from ingest.atomic_decomposer import decompose_to_atoms, cross_reference_atoms_to_tree
 from ingest.tree_builder import build_tree, print_tree
 from reconstruction.stitcher import stitch, get_provenance
@@ -83,7 +83,7 @@ class PageIndexREMSE:
         print_msg("[cyan]No cache found. Running full ingestion pipeline...[/cyan]")
 
         # Phase 1a: Load PDF
-        pages = load_pdf(pdf_path)
+        pages = load_document(pdf_path)
         if not pages:
             raise ValueError("No text extracted from PDF. Is it a scanned/image-only PDF?")
 

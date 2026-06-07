@@ -33,7 +33,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pipeline import PageIndexREMSE
 from reconstruction.tutor import tutor_engine
-from storage.store import save_note_card, load_note_cards
+from storage.store import save_note_card, load_note_cards, get_doc_id, delete_index
 from intelligence.novelty_pipeline import intelligence_engine
 from verification.audit import verifier_engine
 from verification.export import exporter_engine
@@ -220,7 +220,8 @@ async def upload_and_index(
     sessions = []
     
     for file in files:
-        if not file.filename.lower().endswith(".pdf"):
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in (".pdf", ".docx", ".txt", ".md"):
             continue
 
         session_id = str(uuid.uuid4())[:12]
@@ -685,10 +686,18 @@ def delete_session(session_id: str, api_key: str = Depends(get_api_key)):
     """Delete all sessions in the same vault to free memory and remove PDFs."""
     vault_id = _session_to_vault.get(session_id, session_id)
     
-    # 1. Delete associated PDF files
+    # 1. Delete associated PDF files and their cached indices
     files_deleted = 0
+    indices_deleted = 0
     if vault_id in _vault_papers:
         for fpath in _vault_papers[vault_id]:
+            try:
+                # Delete the cached index (tree, atoms, triples, query logs, note cards)
+                doc_id = get_doc_id(fpath)
+                if delete_index(doc_id):
+                    indices_deleted += 1
+            except Exception:
+                pass  # file may not exist for doc_id computation
             try:
                 if os.path.exists(fpath):
                     os.remove(fpath)
@@ -717,7 +726,10 @@ def delete_session(session_id: str, api_key: str = Depends(get_api_key)):
             
     if deleted_count > 0 or files_deleted > 0:
         save_sessions()
-        return {"message": f"Vault '{vault_id}' deleted ({deleted_count} sessions, {files_deleted} files removed)."}
+        return {
+            "message": f"Vault '{vault_id}' deleted ({deleted_count} sessions, "
+                       f"{files_deleted} files, {indices_deleted} cached indices removed)."
+        }
         
     raise HTTPException(status_code=404, detail="Session/Vault not found.")
 

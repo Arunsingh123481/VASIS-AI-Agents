@@ -121,7 +121,7 @@ def retrieve(
         return []
 
 
-    # ── Standard Retrieval ──────────────────────────────────────────────────
+    # ── Standard Retrieval (Weighted RRF: Vector + BM25 + Graph) ───────────
     node_map = {n["node_id"]: n for n in tree}
     scoped   = []
     
@@ -145,35 +145,118 @@ def retrieve(
     if warm_atom_ids:
         scoped = list(set(scoped + [int(x) for x in warm_atom_ids]))
 
-    # Heuristic 1: Scoped BM25
-    bm25_results = bm25_index.search_scoped(query, scoped, TOP_K_ANCHORS * 2)
-    bm25 = {int(r["atom_id"]): float(r["bm25_score"]) for r in bm25_results}
-    max_b = max(bm25.values()) if bm25 else 1.0
+    # Number of candidates to fetch per layer before fusion
+    FETCH_PER_LAYER = TOP_K_ANCHORS * 3
 
-    # Heuristic 2: Scoped Triples Match
-    t_ids = triple_store.get_atoms_for_query(query, scoped, TOP_K_ANCHORS * 2)
-    triple = {
-        int(aid): float((TOP_K_ANCHORS * 2 - i) / (TOP_K_ANCHORS * 2))
-        for i, aid in enumerate(t_ids)
-    }
+    # ── Layer 1: BM25 Lexical Search ─────────────────────────────────────
+    bm25_results = bm25_index.search_scoped(query, scoped, FETCH_PER_LAYER)
+    # Ranked list of atom IDs (position = rank)
+    bm25_ranked = [int(r["atom_id"]) for r in bm25_results if r.get("bm25_score", 0) > 0]
 
-    # Normalize and merge scores: 60% BM25 + 40% Triples
-    combined = {}
-    all_candidate_ids = set(bm25.keys()) | set(triple.keys())
-    for aid in all_candidate_ids:
-        # If the max BM25 score is very low (e.g. < 1.5), do not scale it up to 1.0.
-        # This preserves the weak absolute match strength and flags out-of-scope queries.
-        b_norm = (bm25.get(aid, 0.0) / max_b) if max_b >= 1.5 else (bm25.get(aid, 0.0) / 1.5)
-        b_score = b_norm * 0.6
-        t_score = triple.get(aid, 0.0) * 0.4
-        combined[aid] = b_score + t_score
+    # ── Layer 2: Triple / Graph Match ────────────────────────────────────
+    graph_ranked = [int(aid) for aid in
+                    triple_store.get_atoms_for_query(query, scoped, FETCH_PER_LAYER)]
+
+    # ── Layer 3: Dense Vector Similarity ─────────────────────────────────
+    vector_ranked = _vector_rank(query, scoped, atom_store, FETCH_PER_LAYER)
+
+    # ── Weighted Reciprocal Rank Fusion ──────────────────────────────────
+    #
+    # RRF_Score(d) = Σ  W_m / (k + r_m(d))
+    #                m∈M
+    #
+    # Weights reflect layer strengths:
+    #   Vector  = 1.0  (baseline — catches synonyms and semantic intent)
+    #   BM25    = 1.2  (boosted — exact keyword / ID matching is precise)
+    #   Graph   = 1.5  (heavily boosted — deterministic causal triples are
+    #                    high-confidence when they match)
+    #
+    # k = 64 (industry standard smoothing constant)
+
+    K = 64
+    WEIGHTS = {"vector": 1.0, "bm25": 1.2, "graph": 1.5}
+
+    rrf_scores: dict[int, float] = {}
+
+    def _apply_rrf(ranked_ids: list[int], weight: float):
+        for rank_idx, aid in enumerate(ranked_ids):
+            rank = rank_idx + 1  # 1-based
+            if aid not in rrf_scores:
+                rrf_scores[aid] = 0.0
+            rrf_scores[aid] += weight / (K + rank)
+
+    _apply_rrf(vector_ranked, WEIGHTS["vector"])
+    _apply_rrf(bm25_ranked,   WEIGHTS["bm25"])
+    _apply_rrf(graph_ranked,  WEIGHTS["graph"])
+
+    # ── Out-of-scope detection ───────────────────────────────────────────
+    # If the best RRF score is extremely low, the query likely has no
+    # meaningful match in the document.
+    if rrf_scores:
+        max_rrf = max(rrf_scores.values())
+        # A well-matched atom appearing in all 3 layers at rank 1 would score
+        # ~(1.0 + 1.2 + 1.5) / 65 ≈ 0.057.  A threshold of 0.005 flags truly
+        # unmatched queries without false-flagging weak single-layer hits.
+        if max_rrf < 0.005:
+            print_msg("[Agent4] RRF scores uniformly near-zero — query may be out-of-scope.")
+            return []
 
     # Rank and retrieve top-k anchors
-    top_ids = sorted(combined, key=combined.get, reverse=True)[:TOP_K_ANCHORS]
+    top_ids = sorted(rrf_scores, key=rrf_scores.get, reverse=True)[:TOP_K_ANCHORS]
     anchors = atom_store.get_many(top_ids)
     
     for a in anchors:
-        a["combined_score"] = combined.get(int(a["atom_id"]), 0.0)
+        a["combined_score"] = rrf_scores.get(int(a["atom_id"]), 0.0)
 
-    print_msg(f"[Agent4] Vectorless retrieval complete. Selected {len(anchors)} anchor atoms from scoped candidate set.")
+    print_msg(
+        f"[Agent4] Weighted RRF retrieval complete (V={len(vector_ranked)}, "
+        f"B={len(bm25_ranked)}, G={len(graph_ranked)} candidates). "
+        f"Selected {len(anchors)} anchor atoms."
+    )
     return anchors
+
+
+# ── Vector similarity helper ────────────────────────────────────────────────
+
+_embed_model = None
+
+def _get_embed_model():
+    """Lazy-load the embedding model (shared singleton)."""
+    global _embed_model
+    if _embed_model is None:
+        import os, warnings
+        warnings.filterwarnings("ignore")
+        os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+        from sentence_transformers import SentenceTransformer
+        _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embed_model
+
+
+def _vector_rank(query: str, scoped_ids: list[int], atom_store, top_k: int) -> list[int]:
+    """Rank scoped atoms by dense cosine similarity to the query.
+    Returns a list of atom IDs sorted by descending similarity.
+    """
+    import numpy as np
+
+    scoped_atoms = atom_store.get_many(scoped_ids)
+    if not scoped_atoms:
+        return []
+
+    texts = [a.get("text", "") for a in scoped_atoms]
+    aids  = [int(a["atom_id"]) for a in scoped_atoms]
+
+    model = _get_embed_model()
+    q_emb = model.encode(query, convert_to_tensor=False)
+    a_embs = model.encode(texts, convert_to_tensor=False, show_progress_bar=False)
+
+    # Cosine similarity
+    q_norm = q_emb / (np.linalg.norm(q_emb) + 1e-10)
+    similarities = []
+    for emb in a_embs:
+        a_norm = emb / (np.linalg.norm(emb) + 1e-10)
+        similarities.append(float(np.dot(q_norm, a_norm)))
+
+    # Sort by similarity descending
+    ranked = sorted(zip(aids, similarities), key=lambda x: x[1], reverse=True)
+    return [aid for aid, _ in ranked[:top_k]]
+
