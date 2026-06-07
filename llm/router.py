@@ -12,6 +12,7 @@ AGENTIC_WORK = {
     "agent3_navigator",
     "agent8_temporal",
     "agent10_super",
+    "agent12_websearch",
     "tree_builder",
     "triple_extractor",
 }
@@ -20,6 +21,8 @@ REASONING_WORK = {
     "agent6_validation",
     "agent7_contradiction",
     "agent11_synthesis",
+    "agent13_paper_writer",
+    "agent14_impl_guide",
     "answer_generation",
     "tutor",
     "novelty",

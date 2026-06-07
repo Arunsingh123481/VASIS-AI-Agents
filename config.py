@@ -53,6 +53,19 @@ CONSISTENCY_THRESHOLD  = 0.5
 MIN_SYNTHESIS_CONFIDENCE = 0.5
 MAX_SYNTHESIS_HOPS     = 3
 
+# ─── AGENT 12: WEB SEARCH ─────────────────────────────────
+SERPER_API_KEY         = os.environ.get("SERPER_API_KEY", "")
+WEB_SEARCH_MAX_RESULTS = 10
+WEB_SEARCH_TIMEOUT     = 15
+
+# ─── AGENT 13: PAPER WRITER ───────────────────────────────
+PAPER_DEFAULT_WORD_LIMIT = 4000
+PAPER_DEFAULT_VENUE      = "IEEE"
+PAPER_DEFAULT_TYPE       = "research_article"
+
+# ─── AGENT 14: IMPLEMENTATION GUIDE ──────────────────────
+DEFAULT_RESEARCHER_LEVEL = "masters"
+
 # ─── EXPERIENCE & FEEDBACK ───────────────────────────────
 SIMILARITY_THRESHOLD     = 0.6
 MAX_EXPERIENCE_ENTRIES   = 1000

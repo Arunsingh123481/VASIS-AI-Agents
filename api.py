@@ -189,6 +189,19 @@ class ExportRequest(BaseModel):
     format: str = "docx"
 
 
+class PaperWriteRequest(BaseModel):
+    session_id: str
+    topic: str
+    venue: str = "IEEE"
+    article_type: str = "research_article"
+
+
+class ImplGuideRequest(BaseModel):
+    session_id: str
+    innovation: str
+    researcher_level: str = "masters"
+
+
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @app.get("/health", response_model=HealthResponse)
@@ -591,6 +604,78 @@ def drafting_export(req: ExportRequest, api_key: str = Depends(get_api_key)):
         return FileResponse(filepath, filename=os.path.basename(filepath), media_type=media_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
+
+@app.post("/paper/write")
+def write_paper(req: PaperWriteRequest, api_key: str = Depends(get_api_key)):
+    """
+    Agent 13: Write a complete research paper using vault context + web evidence.
+    Dispatches through the standard Agent 10 pipeline with forced query_type='paper_writing'.
+    """
+    rag = _sessions.get(req.session_id)
+    if not rag:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    try:
+        # Use the pipeline's query() which routes through Agent 10
+        result = rag.query(
+            f"Write a {req.article_type.replace('_', ' ')} for {req.venue} on: {req.topic}",
+            show_provenance=False,
+            forced_query_type="paper_writing"
+        )
+
+        paper_data = result.get("paper_result") or {}
+
+        return {
+            "status":        "success",
+            "full_text":     result.get("answer", ""),
+            "venue":         paper_data.get("venue", req.venue),
+            "article_type":  paper_data.get("article_type", req.article_type),
+            "word_count":    paper_data.get("word_count", len(result.get("answer", "").split())),
+            "sections":      paper_data.get("sections", {}),
+            "web_sources":   paper_data.get("web_sources_used", 0),
+            "total_seconds":  paper_data.get("total_seconds", result.get("elapsed_seconds", 0)),
+            "pipeline_grade": result.get("pipeline_grade", "?"),
+            "confidence":     result.get("confidence", 0),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Paper writing failed: {e}")
+
+
+@app.post("/implementation/guide")
+def implementation_guide(req: ImplGuideRequest, api_key: str = Depends(get_api_key)):
+    """
+    Agent 14: Generate implementation guide using vault context + web evidence.
+    Dispatches through the standard Agent 10 pipeline with forced query_type='implementation_guide'.
+    """
+    rag = _sessions.get(req.session_id)
+    if not rag:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    try:
+        result = rag.query(
+            f"How to implement: {req.innovation}",
+            show_provenance=False,
+            forced_query_type="implementation_guide"
+        )
+
+        impl_data = result.get("impl_result") or {}
+
+        return {
+            "status":           "success",
+            "full_text":        result.get("answer", ""),
+            "researcher_level": impl_data.get("researcher_level", req.researcher_level),
+            "guide":            impl_data.get("guide", {}),
+            "total_seconds":    impl_data.get("total_seconds", result.get("elapsed_seconds", 0)),
+            "web_sources":      impl_data.get("web_sources_used", 0),
+            "pipeline_grade":   result.get("pipeline_grade", "?"),
+            "confidence":       result.get("confidence", 0),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Implementation guide failed: {e}")
+
 
 
 @app.get("/sessions")

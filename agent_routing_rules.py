@@ -432,6 +432,72 @@ ROUTING_RULES = {
         "description": "Full analysis — all agents — "
                        "maximum depth"
     },
+
+    # ── 13. PAPER WRITING ──────────────────────────────────────
+    # "Write a research paper on X"
+    # "Write a review article about Y"
+    "paper_writing": {
+        "required_agents": [
+            "agent1_router",
+            "agent3_navigator",
+            "agent4_retrieval",
+            "agent5_expansion",
+            "agent11_synthesis",
+            "agent12_websearch",
+        ],
+        "optional_agents": [
+            "agent6_validation",
+        ],
+        "skip_agents": [
+            "agent2_decomposer",
+            "agent7_contradiction",
+            "agent8_temporal",
+            "agent9_calibration",
+        ],
+        "agent10_checks": [
+            "did_agent12_find_sources",
+            "is_narrative_complete",
+        ],
+        "max_requery": 0,
+        "min_atoms_needed": 10,
+        "use_full_document": True,
+        "description": "Paper writing — full paper "
+                       "with web evidence"
+    },
+
+    # ── 14. IMPLEMENTATION GUIDE ───────────────────────────────
+    # "How to implement this?"
+    # "Guide me to build X"
+    "implementation_guide": {
+        "required_agents": [
+            "agent3_navigator",
+            "agent4_retrieval",
+            "agent5_expansion",
+            "agent11_synthesis",
+            "agent12_websearch",
+        ],
+        "optional_agents": [
+            "agent8_temporal",
+        ],
+        "skip_agents": [
+            "agent1_router",
+            "agent2_decomposer",
+            "agent6_validation",
+            "agent7_contradiction",
+            "agent9_calibration",
+        ],
+        "agent10_checks": [
+            "does_guide_have_code",
+            "are_datasets_specified",
+            "is_plan_week_by_week",
+            "are_pitfalls_listed",
+        ],
+        "max_requery": 0,
+        "min_atoms_needed": 10,
+        "use_full_document": False,
+        "description": "Implementation guide — "
+                       "code, datasets, plan, pitfalls"
+    },
 }
 
 # ── QUERY TYPE DETECTION RULES ───────────────────────────────
@@ -522,6 +588,28 @@ QUERY_DETECTION_PATTERNS = {
         "when", "who", "where", "what value",
         "what number", "how much",
         "exact", "specific"
+    ],
+
+    "paper_writing": [
+        "write a paper", "write a research paper",
+        "write paper", "draft a paper",
+        "write a review paper", "write a review article",
+        "write an article", "paper on",
+        "research paper on", "review paper on",
+        "short communication", "case study on",
+        "perspective article", "technical note on",
+        "systematic review on", "write for journal",
+        "conference paper", "submit to",
+    ],
+
+    "implementation_guide": [
+        "how to implement", "implement this",
+        "guide me", "show me how",
+        "how do i build", "code for",
+        "step by step", "implementation plan",
+        "help me implement", "how to build",
+        "development guide", "coding guide",
+        "implementation guide",
     ],
 }
 
@@ -633,6 +721,24 @@ AGENT10_REVIEW_RULES = {
         "on_fail": "skip",    # web optional
         "max_retries": 1,
     },
+
+    "agent13_paper_writer": {
+        "pass_if": [
+            "sections is not empty",
+            "word_count > 500",
+        ],
+        "on_fail": "retry_once",
+        "max_retries": 1,
+    },
+
+    "agent14_impl_guide": {
+        "pass_if": [
+            "guide is not empty",
+            "breakdown exists",
+        ],
+        "on_fail": "skip",
+        "max_retries": 0,
+    },
 }
 
 # ── AGENT SPEED ESTIMATES ────────────────────────────────────
@@ -652,6 +758,8 @@ AGENT_SPEED_ESTIMATES = {
     "agent10_super":        {"cpu_secs": 20, "gpu_secs": 4},
     "agent11_synthesis":    {"cpu_secs": 25, "gpu_secs": 5},
     "agent12_websearch":    {"cpu_secs": 15, "gpu_secs": 15},
+    "agent13_paper_writer": {"cpu_secs": 300, "gpu_secs": 120},
+    "agent14_impl_guide":   {"cpu_secs": 300, "gpu_secs": 120},
 }
 
 def estimate_total_time(query_type: str,

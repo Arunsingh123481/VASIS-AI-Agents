@@ -116,7 +116,8 @@ class PageIndexREMSE:
         expansion_passes: int = 4,
         show_provenance: bool = True,
         save_result: bool = True,
-        generate_answer: bool = True
+        generate_answer: bool = True,
+        forced_query_type: str = None
     ) -> Dict:
         """
         Run a full query through the advanced 11-agent CRDB pipeline.
@@ -155,7 +156,7 @@ class PageIndexREMSE:
             feedback_index=feedback
         )
 
-        result = super_agent.execute(question, doc_id=self.doc_id)
+        result = super_agent.execute(question, doc_id=self.doc_id, forced_query_type=forced_query_type)
 
         # Handle aborted pipeline gracefully
         if result.get("aborted", False):
@@ -198,7 +199,10 @@ class PageIndexREMSE:
             "contradictions_found": result.get("contradictions_found", False),
             "contradiction_details": result.get("contradiction_details", []),
             "pipeline_grade": result.get("pipeline_grade", "F"),
-            "elapsed_seconds": result.get("elapsed_seconds", 0.0)
+            "elapsed_seconds": result.get("elapsed_seconds", 0.0),
+            # Agent 13/14 results (paper writing / implementation guide)
+            "paper_result": result.get("paper_result"),
+            "impl_result":  result.get("impl_result"),
         }
 
     def _display_result(self, question: str, answer: str, provenance: Dict, show_provenance: bool) -> None:

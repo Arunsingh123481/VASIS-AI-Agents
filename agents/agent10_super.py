@@ -425,6 +425,14 @@ Return JSON:
             from agents import agent12_websearch  as a12
         except ImportError:
             a12 = None
+        try:
+            from agents import agent13_paper_writer as a13
+        except ImportError:
+            a13 = None
+        try:
+            from agents import agent14_implementation_guide as a14
+        except ImportError:
+            a14 = None
 
         from agents.agent1_router import (
             get_agents_for_query,
@@ -1154,6 +1162,76 @@ Return JSON:
                    "S", 1.0, 0.0,
                    skipped_flag=True)
 
+        # ── STEP 15b: AGENT 13 — PAPER WRITER ─────────────────
+        paper_result = None
+        if query_type == "paper_writing" and a13 is not None:
+            t0 = time.time()
+            print_msg("\n[Agent10] → Dispatching Agent 13 (Paper Writer)...")
+            try:
+                # Parse venue and article type from query
+                venue = "IEEE"
+                article_type = "research_article"
+                q_lower = question.lower()
+                for v in ["neurips", "icml", "iclr", "acm",
+                          "springer", "elsevier", "dsj"]:
+                    if v in q_lower:
+                        venue = v.upper()
+                        break
+                for at in ["review_article", "short_communication",
+                           "systematic_review", "perspective_article",
+                           "technical_note", "case_study",
+                           "letter_to_editor"]:
+                    if at.replace("_", " ") in q_lower:
+                        article_type = at
+                        break
+                if "review" in q_lower and article_type == "research_article":
+                    article_type = "review_article"
+
+                paper_result = a13.write_paper(
+                    topic=question,
+                    venue=venue,
+                    article_type=article_type,
+                    narrative=final_narrative,
+                    atom_ids=unique_atom_ids,
+                    web_evidence=web_result or {"sources": []},
+                    novel_connections=synthesis.get(
+                        "novel_connections", []
+                    ),
+                )
+                record("agent13_paper_writer", paper_result,
+                       "A", 0.90, time.time()-t0)
+                # Override answer with the paper text
+                answer = paper_result.get("full_text", answer)
+            except Exception as e:
+                print_msg(f"[Agent10] agent13 error: {e}")
+                record("agent13_paper_writer", None,
+                       "F", 0.30, time.time()-t0)
+
+        # ── STEP 15c: AGENT 14 — IMPLEMENTATION GUIDE ─────────
+        impl_result = None
+        if query_type == "implementation_guide" and a14 is not None:
+            t0 = time.time()
+            print_msg("\n[Agent10] → Dispatching Agent 14 (Implementation Guide)...")
+            try:
+                impl_result = a14.guide_implementation(
+                    innovation=question,
+                    narrative=final_narrative,
+                    atom_ids=unique_atom_ids,
+                    web_evidence=web_result or {"sources": []},
+                    novel_connections=synthesis.get(
+                        "novel_connections", []
+                    ),
+                    paper_result=paper_result,
+                )
+                record("agent14_impl_guide", impl_result,
+                       "A", 0.90, time.time()-t0)
+                # Override answer with the guide text
+                answer = impl_result.get("full_text", answer)
+            except Exception as e:
+                print_msg(f"[Agent10] agent14 error: {e}")
+                record("agent14_impl_guide", None,
+                       "F", 0.30, time.time()-t0)
+
         # ── STEP 16: SAVE EXPERIENCE ──────────────────────────
         try:
             from learning.experience_store import (
@@ -1281,4 +1359,10 @@ Return JSON:
                 web_result.get("new_papers_added", 0)
                 if web_result else 0
             ),
+
+            # Paper writing (Agent 13)
+            "paper_result":       paper_result,
+
+            # Implementation guide (Agent 14)
+            "impl_result":        impl_result,
         }
