@@ -1,6 +1,6 @@
 # Vasis AI: PageIndex-RE-MSE CRDB Hybrid RAG Engine
 
-A production-ready, highly secure, **100% offline local RAG system** combining macro-level document tree navigation, micro-level atomic text reconstruction, and an **autonomous 11-Agent Contextual Reconstruction Database (CRDB)** orchestration engine.
+A production-ready, highly secure, **100% offline local RAG system** combining macro-level document tree navigation, micro-level atomic text reconstruction, and an **autonomous 14-Agent Contextual Reconstruction Database (CRDB)** orchestration engine.
 
 The system is fully self-contained, requiring zero external APIs, keys, or cloud dependencies, and runs entirely locally via **Ollama**.
 
