@@ -337,90 +337,130 @@ def write_paper(
     # ── 1. ABSTRACT ──────────────────────────────────────
     t = time.time()
     print_msg("[Agent13] Writing: Abstract...")
-    sections["abstract"] = _write_abstract(
-        topic, narrative, web_sources, template, article_type
-    )
+    try:
+        sections["abstract"] = _write_abstract(
+            topic, narrative, web_sources, template, article_type
+        )
+    except Exception as e:
+        print_msg(f"[red]Error writing Abstract: {e}[/red]")
+        sections["abstract"] = "*Error: Abstract section failed to generate due to local LLM timeout or error.*"
     timings["abstract"] = round(time.time() - t, 1)
 
     # ── 2. KEYWORDS ──────────────────────────────────────
     t = time.time()
     print_msg("[Agent13] Writing: Keywords...")
-    sections["keywords"] = _write_keywords(
-        topic, narrative, template
-    )
+    try:
+        sections["keywords"] = _write_keywords(
+            topic, narrative, template
+        )
+    except Exception as e:
+        print_msg(f"[red]Error generating Keywords: {e}[/red]")
+        sections["keywords"] = "error_generating_keywords"
     timings["keywords"] = round(time.time() - t, 1)
 
     # ── 3. INTRODUCTION ──────────────────────────────────
     t = time.time()
     print_msg("[Agent13] Writing: Introduction...")
-    sections["introduction"] = _write_introduction(
-        topic, narrative, web_sources, template, article_type
-    )
+    try:
+        sections["introduction"] = _write_introduction(
+            topic, narrative, web_sources, template, article_type
+        )
+    except Exception as e:
+        print_msg(f"[red]Error writing Introduction: {e}[/red]")
+        sections["introduction"] = "*Error: Introduction section failed to generate due to local LLM timeout or error.*"
     timings["introduction"] = round(time.time() - t, 1)
 
     # ── 4. TAXONOMY (review only) ────────────────────────
     if config["has_taxonomy"]:
         t = time.time()
         print_msg("[Agent13] Writing: Background and Taxonomy...")
-        sections["taxonomy"] = _write_taxonomy(
-            topic, narrative, web_sources, system
-        )
+        try:
+            sections["taxonomy"] = _write_taxonomy(
+                topic, narrative, web_sources, system
+            )
+        except Exception as e:
+            print_msg(f"[red]Error writing Background and Taxonomy: {e}[/red]")
+            sections["taxonomy"] = "*Error: Background and Taxonomy section failed to generate due to local LLM timeout or error.*"
         timings["taxonomy"] = round(time.time() - t, 1)
 
     # ── 5. METHODOLOGY ───────────────────────────────────
     if config["has_methods"]:
         t = time.time()
         print_msg("[Agent13] Writing: Methodology...")
-        sections["methodology"] = _write_methodology(
-            topic, narrative, template
-        )
+        try:
+            sections["methodology"] = _write_methodology(
+                topic, narrative, template
+            )
+        except Exception as e:
+            print_msg(f"[red]Error writing Methodology: {e}[/red]")
+            sections["methodology"] = "*Error: Methodology section failed to generate due to local LLM timeout or error.*"
         timings["methodology"] = round(time.time() - t, 1)
 
     # ── 6. PRISMA (systematic review only) ───────────────
     if config["has_prisma"]:
         t = time.time()
         print_msg("[Agent13] Writing: PRISMA Search Strategy...")
-        sections["search_strategy"] = _write_prisma(
-            topic, web_sources, system
-        )
+        try:
+            sections["search_strategy"] = _write_prisma(
+                topic, web_sources, system
+            )
+        except Exception as e:
+            print_msg(f"[red]Error writing Search Strategy: {e}[/red]")
+            sections["search_strategy"] = "*Error: PRISMA Search Strategy section failed to generate due to local LLM timeout or error.*"
         timings["search_strategy"] = round(time.time() - t, 1)
 
     # ── 7. RESULTS ───────────────────────────────────────
     if config["has_results"]:
         t = time.time()
         print_msg("[Agent13] Writing: Results...")
-        sections["results"] = _write_results(
-            topic, narrative, web_sources, template
-        )
+        try:
+            sections["results"] = _write_results(
+                topic, narrative, web_sources, template
+            )
+        except Exception as e:
+            print_msg(f"[red]Error writing Results: {e}[/red]")
+            sections["results"] = "*Error: Results section failed to generate due to local LLM timeout or error.*"
         timings["results"] = round(time.time() - t, 1)
 
     # ── 8. DISCUSSION ────────────────────────────────────
     if config["has_discussion"]:
         t = time.time()
         print_msg("[Agent13] Writing: Discussion...")
-        sections["discussion"] = _write_discussion(
-            topic, narrative,
-            sections.get("results", ""),
-            web_sources
-        )
+        try:
+            sections["discussion"] = _write_discussion(
+                topic, narrative,
+                sections.get("results", ""),
+                web_sources
+            )
+        except Exception as e:
+            print_msg(f"[red]Error writing Discussion: {e}[/red]")
+            sections["discussion"] = "*Error: Discussion section failed to generate due to local LLM timeout or error.*"
         timings["discussion"] = round(time.time() - t, 1)
 
     # ── 9. CONCLUSION ────────────────────────────────────
     t = time.time()
     print_msg("[Agent13] Writing: Conclusion...")
-    sections["conclusion"] = _write_conclusion(
-        topic, narrative,
-        sections["introduction"],
-        template
-    )
+    try:
+        sections["conclusion"] = _write_conclusion(
+            topic, narrative,
+            sections.get("introduction", ""),
+            template
+        )
+    except Exception as e:
+        print_msg(f"[red]Error writing Conclusion: {e}[/red]")
+        sections["conclusion"] = "*Error: Conclusion section failed to generate due to local LLM timeout or error.*"
     timings["conclusion"] = round(time.time() - t, 1)
 
     # ── 10. REFERENCES ───────────────────────────────────
     t = time.time()
     print_msg("[Agent13] Writing: References...")
-    sections["references"] = _generate_references(
-        web_sources, narrative, template, topic
-    )
+    try:
+        sections["references"] = _generate_references(
+            web_sources, narrative, template, topic
+        )
+    except Exception as e:
+        print_msg(f"[red]Error writing References: {e}[/red]")
+        sections["references"] = "*Error: References section failed to generate due to local LLM timeout or error.*"
     timings["references"] = round(time.time() - t, 1)
 
     elapsed = round(time.time() - start_time, 1)

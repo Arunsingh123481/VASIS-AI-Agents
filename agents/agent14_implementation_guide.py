@@ -451,9 +451,22 @@ def guide_implementation(
     # ── 1. BREAKDOWN ─────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 1/10: Breaking down innovation...")
-    guide["breakdown"] = _breakdown_innovation(
-        innovation, narrative, web_sources
-    )
+    try:
+        guide["breakdown"] = _breakdown_innovation(
+            innovation, narrative, web_sources
+        )
+    except Exception as e:
+        print_msg(f"[red]Error breaking down innovation: {e}[/red]")
+        guide["breakdown"] = {
+            "innovation_name":       innovation[:60],
+            "core_idea":             innovation,
+            "problem_solved":        "Failed to generate innovation breakdown details due to error.",
+            "novelty_claim":         "Novel combination",
+            "technical_components":  [],
+            "prior_work_gap":        "See Agent 11 output",
+            "expected_improvements": [],
+            "risks":                 []
+        }
     timings["breakdown"] = round(time.time() - t, 1)
     name = guide["breakdown"].get("innovation_name", innovation[:60])
     print_msg(f"[Agent14] Innovation: {name}")
@@ -461,73 +474,109 @@ def guide_implementation(
     # ── 2. ARCHITECTURE ──────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 2/10: Designing architecture...")
-    guide["architecture"] = _design_architecture(
-        guide["breakdown"], narrative
-    )
+    try:
+        guide["architecture"] = _design_architecture(
+            guide["breakdown"], narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error designing architecture: {e}[/red]")
+        guide["architecture"] = "*Error: Architecture design failed to generate due to local LLM timeout or error.*"
     timings["architecture"] = round(time.time() - t, 1)
 
     # ── 3. PSEUDOCODE ────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 3/10: Writing pseudocode...")
-    guide["pseudocode"] = _write_pseudocode(
-        guide["breakdown"], narrative
-    )
+    try:
+        guide["pseudocode"] = _write_pseudocode(
+            guide["breakdown"], narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error writing pseudocode: {e}[/red]")
+        guide["pseudocode"] = "*Error: Pseudocode failed to generate due to local LLM timeout or error.*"
     timings["pseudocode"] = round(time.time() - t, 1)
 
     # ── 4. CODE SKELETON ─────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 4/10: Writing code skeleton...")
-    guide["code_skeleton"] = _write_code_skeleton(
-        guide["breakdown"], narrative
-    )
+    try:
+        guide["code_skeleton"] = _write_code_skeleton(
+            guide["breakdown"], narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error writing code skeleton: {e}[/red]")
+        guide["code_skeleton"] = "*Error: Code skeleton failed to generate due to local LLM timeout or error.*"
     timings["code_skeleton"] = round(time.time() - t, 1)
 
     # ── 5. DATASETS ──────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 5/10: Recommending datasets...")
-    guide["datasets"] = _recommend_datasets(
-        guide["breakdown"], web_sources, narrative
-    )
+    try:
+        guide["datasets"] = _recommend_datasets(
+            guide["breakdown"], web_sources, narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error recommending datasets: {e}[/red]")
+        guide["datasets"] = "*Error: Dataset recommendations failed to generate due to local LLM timeout or error.*"
     timings["datasets"] = round(time.time() - t, 1)
 
     # ── 6. BASELINES ─────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 6/10: Defining baselines...")
-    guide["baselines"] = _design_baselines(
-        guide["breakdown"], web_sources, narrative
-    )
+    try:
+        guide["baselines"] = _design_baselines(
+            guide["breakdown"], web_sources, narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error defining baselines: {e}[/red]")
+        guide["baselines"] = "*Error: Baseline comparisons failed to generate due to local LLM timeout or error.*"
     timings["baselines"] = round(time.time() - t, 1)
 
     # ── 7. METRICS ───────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 7/10: Defining metrics...")
-    guide["metrics"] = _define_metrics(
-        guide["breakdown"], narrative
-    )
+    try:
+        guide["metrics"] = _define_metrics(
+            guide["breakdown"], narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error defining metrics: {e}[/red]")
+        guide["metrics"] = "*Error: Evaluation metrics failed to generate due to local LLM timeout or error.*"
     timings["metrics"] = round(time.time() - t, 1)
 
     # ── 8. IMPLEMENTATION PLAN ───────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 8/10: Creating plan...")
-    guide["implementation_plan"] = _create_plan(
-        guide["breakdown"], researcher_level
-    )
+    try:
+        guide["implementation_plan"] = _create_plan(
+            guide["breakdown"], researcher_level
+        )
+    except Exception as e:
+        print_msg(f"[red]Error creating plan: {e}[/red]")
+        guide["implementation_plan"] = "*Error: Implementation plan failed to generate due to local LLM timeout or error.*"
     timings["plan"] = round(time.time() - t, 1)
 
     # ── 9. PITFALLS ──────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 9/10: Listing pitfalls...")
-    guide["pitfalls_and_tips"] = _list_pitfalls(
-        guide["breakdown"], narrative, web_sources
-    )
+    try:
+        guide["pitfalls_and_tips"] = _list_pitfalls(
+            guide["breakdown"], narrative, web_sources
+        )
+    except Exception as e:
+        print_msg(f"[red]Error listing pitfalls: {e}[/red]")
+        guide["pitfalls_and_tips"] = "*Error: Pitfalls and tips failed to generate due to local LLM timeout or error.*"
     timings["pitfalls"] = round(time.time() - t, 1)
 
     # ── 10. HARDWARE ─────────────────────────────────────
     t = time.time()
     print_msg("[Agent14] Step 10/10: Hardware requirements...")
-    guide["hardware"] = _estimate_hardware(
-        guide["breakdown"], narrative
-    )
+    try:
+        guide["hardware"] = _estimate_hardware(
+            guide["breakdown"], narrative
+        )
+    except Exception as e:
+        print_msg(f"[red]Error estimating hardware: {e}[/red]")
+        guide["hardware"] = "*Error: Hardware requirements failed to generate due to local LLM timeout or error.*"
     timings["hardware"] = round(time.time() - t, 1)
 
     elapsed = round(time.time() - start_time, 1)
