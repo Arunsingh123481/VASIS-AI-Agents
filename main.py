@@ -13,12 +13,28 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.markdown import Markdown
+from rich import box
 from config import DEFAULT_MODEL
 
 console = Console()
 
 # ── OUTPUT DIRECTORY (for Agent 13 papers + Agent 14 guides) ──────────────────
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
+
+
+def _print_banner():
+    banner_text = """
+ [bold violet]██████╗  █████╗  ██████╗ ███████╗██╗███╗   ██╗██████╗ ███████╗██╗  ██╗[/bold violet]
+ [bold violet]██╔══██╗██╔══██╗██╔════╝ ██╔════╝██║████╗  ██║██╔══██╗██╔════╝╚██╗██╔╝[/bold violet]
+ [bold violet]██████╔╝███████║██║  ███╗█████╗  ██║██╔██╗ ██║██║  ██║█████╗   ╚███╔╝ [/bold violet]
+ [bold violet]██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║██║╚██╗██║██║  ██║██╔══╝   ██╔██╗ [/bold violet]
+ [bold violet]██║     ██║  ██║╚██████╔╝███████╗██║██║ ╚████║██████╔╝███████╗██╔╝ ██╗[/bold violet]
+ [bold violet]╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═╝[/bold violet]
+
+          [bold cyan]⚡ PageIndex-RE-MSE AI — 14-Agent Consensus Engine ⚡[/bold cyan]
+    """
+    console.print(Panel(banner_text, border_style="violet", box=box.ROUNDED, expand=False))
 
 
 def _save_agent_output(
@@ -85,12 +101,14 @@ def cli():
 def index(pdf_path, model, force_reindex, show_tree):
     """Index a PDF document (build tree + atoms + causal knowledge triples)."""
     _check_pdf(pdf_path)
+    _print_banner()
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from pipeline import PageIndexREMSE
 
     rag = PageIndexREMSE(model=model)
-    rag.ingest(pdf_path, force_reindex=force_reindex)
+    with console.status("[bold cyan]Swarm active — Ingesting PDF and building causal graph...[/bold cyan]", spinner="dots"):
+        rag.ingest(pdf_path, force_reindex=force_reindex)
 
     stats = rag.get_stats()
     _print_stats(stats)
@@ -98,7 +116,7 @@ def index(pdf_path, model, force_reindex, show_tree):
     if show_tree:
         rag.show_tree()
 
-    console.print("\n[bold green]Document indexed and causal graph built successfully. Ready to query.[/bold green]")
+    console.print("\n[bold green]✓ Document indexed and causal graph built successfully. Ready to query.[/bold green]")
     console.print(f"[dim]Run: python main.py chat {pdf_path}[/dim]")
 
 
@@ -113,19 +131,20 @@ def index(pdf_path, model, force_reindex, show_tree):
 def ask(pdf_path, question, model, top_k, passes, no_provenance, json_output):
     """Ask a single question about a PDF document using the 11-Agent CRDB engine."""
     _check_pdf(pdf_path)
+    _print_banner()
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from pipeline import PageIndexREMSE
 
     rag = PageIndexREMSE(model=model)
-    rag.ingest(pdf_path)
-
-    result = rag.query(
-        question,
-        top_k_anchors=top_k,
-        expansion_passes=passes,
-        show_provenance=not no_provenance
-    )
+    with console.status("[bold cyan]Swarm active — Ingesting PDF and executing agent pipeline...[/bold cyan]", spinner="arc"):
+        rag.ingest(pdf_path)
+        result = rag.query(
+            question,
+            top_k_anchors=top_k,
+            expansion_passes=passes,
+            show_provenance=not no_provenance
+        )
 
     if json_output:
         output = {
@@ -140,21 +159,26 @@ def ask(pdf_path, question, model, top_k, passes, no_provenance, json_output):
         }
         console.print(json.dumps(output, indent=2, ensure_ascii=False))
     else:
+        # Display response inside a gorgeous Panel with Markdown rendering
+        console.print(Panel(
+            Markdown(result["answer"]),
+            title="[bold green]✓ PageIndex AI Response[/bold green]",
+            subtitle=f"[bold green]Trust: {result.get('trust_level', 'low').upper()} ({result.get('confidence', 0.0)}) | Grade: {result.get('pipeline_grade', 'F')}[/bold green]",
+            border_style="green",
+            box=box.ROUNDED,
+            expand=False
+        ))
+
         # Display advanced CRDB metrics
-        console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-        console.print(f"[bold white]CRDB MULTI-AGENT PIPELINE ANALYSIS[/bold white]")
-        console.print(f"[bold cyan]{'='*60}[/bold cyan]")
-        console.print(f"  [bold]TRUST LEVEL[/bold]  : [bold green]{result.get('trust_level', 'low').upper()}[/bold green] ({result.get('confidence', 0.0)})")
-        console.print(f"  [bold]PIPELINE GRADE[/bold]: [bold yellow]{result.get('pipeline_grade', 'F')}[/bold yellow]")
-        console.print(f"  [bold]ELAPSED TIME[/bold]  : {result.get('elapsed_seconds', 0.0)}s")
+        console.print(f"\n[bold cyan]--- Swarm Analysis ({result.get('elapsed_seconds', 0.0)}s) ---[/bold cyan]")
         
         if result.get("contradictions_found"):
-            console.print(f"\n[bold red][WARNING] CONTRADICTIONS DETECTED:[/bold red]")
+            console.print("\n[bold red][WARNING] CONTRADICTIONS DETECTED:[/bold red]")
             for c in result.get("contradiction_details", []):
                 console.print(f"   [[bold]{c.get('severity', '?').upper()}[/bold]] {c.get('claim_a', '')} <-> {c.get('claim_b', '')}")
                 
         if result.get("novel_connections"):
-            console.print(f"\n[bold green][NOVEL INSIGHT] NOVEL SYNTHESISED CAUSAL CONNECTIONS:[/bold green]")
+            console.print("\n[bold green][NOVEL INSIGHT] NOVEL SYNTHESISED CAUSAL CONNECTIONS:[/bold green]")
             for n in result["novel_connections"]:
                 via = " -> ".join(n.get("via", []))
                 console.print(f"   [bold]{n.get('from', '')}[/bold] -> {via} -> [bold]{n.get('to', '')}[/bold] (conf={n.get('confidence', 0.0):.2f})")
@@ -169,20 +193,23 @@ def ask(pdf_path, question, model, top_k, passes, no_provenance, json_output):
 def chat(pdf_path, model, top_k, passes):
     """Interactive chat mode — ask multiple questions utilizing the 11-Agent CRDB engine."""
     _check_pdf(pdf_path)
+    _print_banner()
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from pipeline import PageIndexREMSE
     from agent_routing_rules import QUERY_DETECTION_PATTERNS
 
     rag = PageIndexREMSE(model=model)
-    rag.ingest(pdf_path)
+    with console.status("[bold cyan]Swarm active — Loading and analyzing document...[/bold cyan]", spinner="dots"):
+        rag.ingest(pdf_path)
 
     console.print(Panel(
-        "[bold cyan]PageIndex-RE-MSE Interactive Multi-Agent Chat (CRDB Engine)[/bold cyan]\n"
-        f"Document: {os.path.basename(pdf_path)}\n"
-        "Type your question and press Enter.\n"
-        "Commands: [bold]tree[/bold] = show index | [bold]stats[/bold] = show stats | [bold]quit[/bold] = exit",
-        title="Chat Mode"
+        f"[bold violet]Document:[/bold violet] [cyan]{os.path.basename(pdf_path)}[/cyan]\n\n"
+        "Ask questions about the paper. The 14-Agent Swarm will synthesize answers.\n"
+        "Commands: [bold cyan]tree[/bold cyan] (show index) | [bold cyan]stats[/bold cyan] (show stats) | [bold cyan]quit[/bold cyan] (exit)",
+        title="[bold green]● Swarm Chat Active[/bold green]",
+        border_style="green",
+        box=box.ROUNDED
     ))
 
     # Available options for interactive prompting
@@ -196,7 +223,8 @@ def chat(pdf_path, model, top_k, passes):
 
     while True:
         try:
-            question = Prompt.ask("\n[bold cyan]Your question[/bold cyan]")
+            # Claude Code style user prompt
+            question = Prompt.ask("\n[bold violet]╭── user[/bold violet]\n[bold violet]╰──>[/bold violet]")
 
             if not question.strip():
                 continue
@@ -223,8 +251,12 @@ def chat(pdf_path, model, top_k, passes):
             researcher_level = None
 
             if is_paper:
-                console.print("\n[bold yellow]📄 Research Paper Writing Mode detected![/bold yellow]")
-                console.print("[dim]Please answer a few quick questions to customise your paper:[/dim]\n")
+                console.print(Panel(
+                    "[bold yellow]📄 Research Paper Writing Mode detected![/bold yellow]\n"
+                    "[dim]Please answer a few quick questions to customise your paper:[/dim]",
+                    border_style="yellow",
+                    box=box.ROUNDED
+                ))
 
                 # Ask for venue
                 console.print("[bold]Target Venue / Journal:[/bold]")
@@ -249,8 +281,12 @@ def chat(pdf_path, model, top_k, passes):
                 console.print(f"\n[green]✓ Writing a [bold]{article_type.replace('_', ' ').title()}[/bold] for [bold]{venue}[/bold][/green]\n")
 
             if is_guide:
-                console.print("\n[bold yellow]🔧 Implementation Guide Mode detected![/bold yellow]")
-                console.print("[dim]Please answer a quick question to personalise your guide:[/dim]\n")
+                console.print(Panel(
+                    "[bold yellow]🔧 Implementation Guide Mode detected![/bold yellow]\n"
+                    "[dim]Please answer a quick question to personalise your guide:[/dim]",
+                    border_style="yellow",
+                    box=box.ROUNDED
+                ))
 
                 # Ask for researcher level
                 console.print("[bold]Your Researcher Level:[/bold]")
@@ -264,15 +300,27 @@ def chat(pdf_path, model, top_k, passes):
 
                 console.print(f"\n[green]✓ Generating guide for [bold]{researcher_level.title()}[/bold] level researcher[/green]\n")
 
-            result = rag.query(
-                question,
-                top_k_anchors=top_k,
-                expansion_passes=passes,
-                show_provenance=True,
-                venue=venue,
-                article_type=article_type,
-                researcher_level=researcher_level
-            )
+            # Execute query inside styled status spinner
+            with console.status("[bold cyan]Swarm active — Analyzing query & synthesizing consensus...[/bold cyan]", spinner="arc"):
+                result = rag.query(
+                    question,
+                    top_k_anchors=top_k,
+                    expansion_passes=passes,
+                    show_provenance=True,
+                    venue=venue,
+                    article_type=article_type,
+                    researcher_level=researcher_level
+                )
+
+            # Display response inside a gorgeous Panel with Markdown rendering
+            console.print(Panel(
+                Markdown(result["answer"]),
+                title="[bold green]✓ PageIndex Response[/bold green]",
+                subtitle=f"[bold green]Trust: {result.get('trust_level', 'low').upper()} ({result.get('confidence', 0.0)}) | Grade: {result.get('pipeline_grade', 'F')}[/bold green]",
+                border_style="green",
+                box=box.ROUNDED,
+                expand=False
+            ))
 
             # ── Auto-save Agent 13 / 14 outputs ─────────────────────────────
             paper_result = result.get("paper_result")
@@ -298,11 +346,11 @@ def chat(pdf_path, model, top_k, passes):
                 console.print(f"\n[bold green]🔧 Guide saved →[/bold green] [cyan]{saved_path}[/cyan]")
 
             # Display advanced CRDB metrics in chat mode too
-            console.print(f"\n[bold cyan]--- CRDB Engine Analysis ---[/bold cyan]")
+            console.print("\n[bold cyan]--- CRDB Engine Analysis ---[/bold cyan]")
             console.print(f"  [bold]TRUST LEVEL[/bold]: [bold green]{result.get('trust_level', 'low').upper()}[/bold green] ({result.get('confidence', 0.0)}) | [bold]GRADE[/bold]: [bold yellow]{result.get('pipeline_grade', 'F')}[/bold yellow]")
 
             if result.get("contradictions_found"):
-                console.print(f"  [bold red][WARNING] CONTRADICTIONS DETECTED![/bold red] Severity details shown above.")
+                console.print("  [bold red][WARNING] CONTRADICTIONS DETECTED![/bold red] Severity details shown above.")
             if result.get("novel_connections"):
                 console.print(f"  [bold green][NOVEL INSIGHT] {len(result['novel_connections'])} NOVEL INFERENCES SYNTHESISED![/bold green] Run single query to view full graph paths.")
 
