@@ -5,12 +5,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 from llm.router import generate, generate_json
-from utils.exceptions import RequerySignal
-from config import MAX_REQUERY_ATTEMPTS, MODE
+from config import MODE
 from console_helper import print_msg
 from agent_routing_rules import (
     AGENT10_REVIEW_RULES,
-    ROUTING_RULES,
     QUERY_DETECTION_PATTERNS
 )
 
@@ -43,9 +41,12 @@ REVIEWER = ("You are a quality reviewer evaluating outputs. "
              "Return ONLY valid JSON.")
 
 def _grade(score: float) -> str:
-    if score >= 0.85: return "A"
-    if score >= 0.70: return "B"
-    if score >= 0.50: return "C"
+    if score >= 0.85:
+        return "A"
+    if score >= 0.70:
+        return "B"
+    if score >= 0.50:
+        return "C"
     return "F"
 
 def _review(agent_name: str, inp: str, out: str, expected: list) -> dict:
@@ -496,7 +497,6 @@ Return JSON:
         calibration    = None
         synthesis      = None
         web_result     = None
-        narrative      = ""
         failed_sub_queries = []
 
         def is_needed(agent_name: str) -> bool:
@@ -588,8 +588,8 @@ Return JSON:
                 )
                 if not review["pass"]:
                     print_msg(
-                        f"[Agent10] Decomposer failed "
-                        f"check — using original query"
+                        "[Agent10] Decomposer failed "
+                        "check — using original query"
                     )
                     sub_queries = [
                         routed["rewritten_query"]
@@ -677,7 +677,6 @@ Return JSON:
         any_retrieval_run = False
 
         for sq in sub_queries:
-            t4 = time.time()
             
             # Determine if we should dynamically skip agent4_retrieval for this specific sub-query
             skip_retrieval_for_sq = False
@@ -763,16 +762,15 @@ Return JSON:
                                 self.triple_store, warm_atoms,
                                 routed=routed
                             )
-                    # Even after retrieval/retry, check if the best anchor is a meaningful keyword match (score >= 0.15)
-                    if anchors and not any(a.get("combined_score", 0.0) >= 0.15 for a in anchors):
-                        print_msg("[Agent10] Low anchor quality score (< 0.15). Flagging sub-query as out-of-scope.")
+                    # Even after retrieval/retry, check if the best anchor is a meaningful keyword match (score >= 0.01)
+                    if anchors and not any(a.get("combined_score", 0.0) >= 0.01 for a in anchors):
+                        print_msg("[Agent10] Low anchor quality score (< 0.01). Flagging sub-query as out-of-scope.")
                         anchors = []
                 except Exception as e:
                     print_msg(f"[Agent10] agent4 error: {e}")
                     anchors = []
 
             # ── STEP 8: AGENT 5 — EXPANSION ──────────────────
-            t5 = time.time()
             try:
                 expansion = a5.expand(
                     anchor_atoms=anchors,
@@ -1303,9 +1301,12 @@ Return JSON:
         ) if ran_agents else 0.5
 
         def grade(s):
-            if s >= 0.85: return "A"
-            if s >= 0.70: return "B"
-            if s >= 0.50: return "C"
+            if s >= 0.85:
+                return "A"
+            if s >= 0.70:
+                return "B"
+            if s >= 0.50:
+                return "C"
             return "F"
 
         elapsed_total = round(time.time()-start_time, 2)

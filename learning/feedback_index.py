@@ -44,11 +44,18 @@ class FeedbackIndex:
             return None
             
         best = similar[0]
+        useful_nodes = [str(x) for x in best.get("useful_node_ids", [])]
+        
+        # If the historical run had no useful nodes, do not warm-start;
+        # running normal retrieval is a safer fallback to avoid locking in 0% recall.
+        if not useful_nodes:
+            return None
+            
         print_msg(f"[FeedbackIndex] [bold green]WARM START DETECTED![/bold green] Found highly similar historical query. Re-using cached index targets (confidence={best['confidence']:.2f}).")
         
         return {
             "warm_atom_ids": [int(x) for x in best.get("useful_atom_ids", [])],
-            "warm_node_ids": [str(x) for x in best.get("useful_node_ids", [])],
+            "warm_node_ids": useful_nodes,
             "past_confidence": float(best.get("confidence", 0.0)),
             "past_trust": str(best.get("trust_level", "low"))
         }

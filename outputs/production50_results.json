@@ -1,0 +1,2430 @@
+{
+  "run_timestamp": "2026-06-08T11:45:07.698002",
+  "pdf": "1cf6b031-c99_NIPS-2017-attention-is-all-you-need-Paper.pdf",
+  "total_queries": 50,
+  "avg_recall": 0.78,
+  "avg_accuracy": 0.591,
+  "safety_rate": 0.92,
+  "total_failures": 50,
+  "total_time_seconds": 2398.6,
+  "category_stats": {
+    "Factual Retrieval": {
+      "count": 12,
+      "avg_recall": 0.625,
+      "avg_accuracy": 0.6042,
+      "safety_rate": 1.0
+    },
+    "Mathematical/Formula": {
+      "count": 8,
+      "avg_recall": 1.0,
+      "avg_accuracy": 0.5438,
+      "safety_rate": 1.0
+    },
+    "Causal Multi-Hop": {
+      "count": 8,
+      "avg_recall": 0.6042,
+      "avg_accuracy": 0.4875,
+      "safety_rate": 1.0
+    },
+    "Comparative Analysis": {
+      "count": 6,
+      "avg_recall": 1.0,
+      "avg_accuracy": 0.3917,
+      "safety_rate": 1.0
+    },
+    "Hallucination Rejection": {
+      "count": 8,
+      "avg_recall": 0.75,
+      "avg_accuracy": 0.75,
+      "safety_rate": 0.5
+    },
+    "Structural/Architectural": {
+      "count": 5,
+      "avg_recall": 0.7333,
+      "avg_accuracy": 0.66,
+      "safety_rate": 1.0
+    },
+    "Adversarial Edge Case": {
+      "count": 3,
+      "avg_recall": 1.0,
+      "avg_accuracy": 0.8,
+      "safety_rate": 1.0
+    }
+  },
+  "failures": [
+    {
+      "id": "F-01",
+      "category": "Factual Retrieval",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "ground_truth": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer model proposed in \"Attention Is All You Need\" relies solely on self-attention mechanisms, without using sequence-aligned RNNs or convolutions. This model consists of stacked self-atten"
+    },
+    {
+      "id": "F-02",
+      "category": "Factual Retrieval",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 0.5,
+      "pages_retrieved": [
+        2,
+        4,
+        6,
+        8,
+        9
+      ],
+      "ground_truth": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer model uses a variable number of attention heads. In the provided context, it is mentioned that Table 3 rows (A) vary the number of attention heads and the attention key and value dimen"
+    },
+    {
+      "id": "F-03",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.5,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        8,
+        9
+      ],
+      "ground_truth": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer architecture is a model that relies entirely on self-attention for computing representations of its input and output, without using sequence-to-sequence recurrence (i.e., recurrent lay"
+    },
+    {
+      "id": "F-04",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.5,
+      "pages_retrieved": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        3,
+        4
+      ],
+      "answer_snippet": "The document does not provide a specific number for the \"N\" value of encoder layers in the base Transformer model."
+    },
+    {
+      "id": "F-05",
+      "category": "Factual Retrieval",
+      "failures": [
+        "zero_recall",
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "The Transformer model uses self-attention (also known as scaled dot-product attention) and multi-head attention to train its neural networks. These attention mechanisms allow the model to focus on dif"
+    },
+    {
+      "id": "F-06",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        4,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        6
+      ],
+      "answer_snippet": "The dataset used for English-to-German translation in the context of the provided document is the WMT 2014 English-German dataset. This dataset consists of about 4.5 million sentence pairs, which were"
+    },
+    {
+      "id": "F-07",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.5,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        6,
+        7
+      ],
+      "answer_snippet": "The Transformer achieved a BLEU score of 46.6 on English-to-German translation, according to the provided document context. This information is not available in the given context."
+    },
+    {
+      "id": "F-08",
+      "category": "Factual Retrieval",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [
+        2,
+        4,
+        6,
+        8,
+        9
+      ],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "The provided document does not provide specific information on the dropout rate applied in the base Transformer model. It only mentions a dropout rate of 0.1 instead of 0.3, but it is unclear which sp"
+    },
+    {
+      "id": "F-09",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        4,
+        5
+      ],
+      "answer_snippet": "The inner-layer dimensionality of the feed-forward network is d_ff = 2048. This information can be found in the context provided, which states that each of the layers in the encoder and decoder contai"
+    },
+    {
+      "id": "F-10",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.5,
+      "pages_retrieved": [
+        2,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        3,
+        4
+      ],
+      "answer_snippet": "The Transformer has a stack of 6 identical layers (N = 6). Each layer contains two sub-layers: a multi-head self-attention mechanism and a simple, position-based feed-forward network."
+    },
+    {
+      "id": "F-11",
+      "category": "Factual Retrieval",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "The document does not provide specific information on how many GPUs were utilized in the training process. However, it mentions that training was conducted on one machine with 8 NVIDIA P100 GPUs."
+    },
+    {
+      "id": "F-12",
+      "category": "Factual Retrieval",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "The paper \"Attention is All You Need\" presents a new model called the Transformer, which is designed to handle language translation tasks. The Transformer uses a self-attention mechanism to process in"
+    },
+    {
+      "id": "M-01",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        4
+      ],
+      "answer_snippet": "The Scaled Dot-Product Attention formula is as follows:\n\nFor each query Q, key K, and value V:\n\n1. Scale the dot product of the query and key by dividing it by \u221adk (where dk is the dimension of keys):"
+    },
+    {
+      "id": "M-02",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        6,
+        7,
+        8
+      ],
+      "ground_truth": [
+        4
+      ],
+      "answer_snippet": "The dot product in the attention formula is divided by the square root of d_k for two main reasons: to normalize the dot product and make it comparable with the scale of other operations within the at"
+    },
+    {
+      "id": "M-03",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        5,
+        6
+      ],
+      "answer_snippet": "The Transformer model uses a type of attention mechanism called \"self-attention.\" This attention mechanism allows the model to focus on different parts of the input sequence simultaneously, which help"
+    },
+    {
+      "id": "M-04",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        4,
+        5
+      ],
+      "answer_snippet": "The position-wise feed-forward network in the Transformer is a type of linear layer that processes input and output at each position separately. It consists of two linear transformations (referred to "
+    },
+    {
+      "id": "M-05",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        4
+      ],
+      "answer_snippet": "Multi-Head Attention is a mechanism used in deep learning models, particularly in natural language processing tasks like translation and language modeling. It is a key component of the Transformer mod"
+    },
+    {
+      "id": "M-06",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10
+      ],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "The learning rate schedule formula used for training is described in the document, but specific details on how to implement it in machine learning frameworks like TensorFlow or PyTorch are not provide"
+    },
+    {
+      "id": "M-07",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "ground_truth": [
+        6
+      ],
+      "answer_snippet": "What is the computational complexity of self-attention? The Transformer model uses a multi-head attention mechanism called self-attention to process input sequences. Self-attention computes the simila"
+    },
+    {
+      "id": "M-08",
+      "category": "Mathematical/Formula",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        6
+      ],
+      "answer_snippet": "Self-attention mechanisms and recurrent layers have different computational efficiencies. Self-attention (Transformer) models rely on attention mechanisms to compute representations of input sequences"
+    },
+    {
+      "id": "C-01",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.6666666666666666,
+      "pages_retrieved": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        2,
+        3,
+        5
+      ],
+      "answer_snippet": "The Transformer utilizes masking in the decoder self-attention to prevent leftward information flow and preserve the auto-regressive property of the model. This is done by masking out (setting to -\u221e) "
+    },
+    {
+      "id": "C-02",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.6666666666666666,
+      "pages_retrieved": [
+        1,
+        2,
+        3
+      ],
+      "ground_truth": [
+        1,
+        2,
+        6
+      ],
+      "answer_snippet": "The attention mechanism was replaced by recurrent architectures in sequence-to-sequence tasks due to its ability to model dependencies between input and output without regard to their distance in the "
+    },
+    {
+      "id": "C-03",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [
+        5,
+        6
+      ],
+      "answer_snippet": "Positional encoding allows the Transformer to handle sequence order by adding special values to the input embeddings at each position in the sequence. These positional encodings are based on sine and "
+    },
+    {
+      "id": "C-04",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth": [
+        3,
+        4
+      ],
+      "answer_snippet": "Residual connections are important in each sub-layer of the Transformer model to help alleviate the problem of vanishing gradients and improve the model's learning ability. The document mentions using"
+    },
+    {
+      "id": "C-05",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 0.5,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        3,
+        4
+      ],
+      "answer_snippet": "Self-attention layers are compared to recurrent and convolutional layers in terms of computational complexity, parallelism, and the ability to learn long-range dependencies. The main advantage of self"
+    },
+    {
+      "id": "C-06",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        4,
+        5,
+        6,
+        8
+      ],
+      "ground_truth": [
+        4
+      ],
+      "answer_snippet": "Using multiple attention heads improves learning compared to a single attention head by enabling the model to consider relationships between different positions in the input sequence simultaneously. T"
+    },
+    {
+      "id": "C-07",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "Label smoothing hurts perplexity but improves BLEU because it helps to reduce overfitting and improve generalization of a model during training. When using label smoothing, we introduce some randomnes"
+    },
+    {
+      "id": "C-08",
+      "category": "Causal Multi-Hop",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3
+      ],
+      "ground_truth": [
+        6
+      ],
+      "answer_snippet": "The Transformer achieves constant path length between positions by relying entirely on self-attention instead of recurrence or convolutions in its model architecture. This allows for significantly mor"
+    },
+    {
+      "id": "CP-01",
+      "category": "Comparative Analysis",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth": [
+        1,
+        2,
+        6
+      ],
+      "answer_snippet": "1) Computational Efficiency and Memory Usage Comparison: The Transformer model replaces recurrent layers (such as RNNs and LSTMs) with multi-headed self-attention mechanisms. This results in a signifi"
+    },
+    {
+      "id": "CP-02",
+      "category": "Comparative Analysis",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        6
+      ],
+      "answer_snippet": "The advantages of self-attention over convolutional layers for sequence tasks include:\n\n1. Parallelization: Self-attention allows for significantly more parallelization than convolutional layers. This"
+    },
+    {
+      "id": "CP-03",
+      "category": "Comparative Analysis",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        5,
+        6
+      ],
+      "answer_snippet": "The Transformer model presented in the given document is a type of neural network architecture designed for sequence transduction tasks such as machine translation. It replaces traditional recurrent l"
+    },
+    {
+      "id": "CP-04",
+      "category": "Comparative Analysis",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [
+        7
+      ],
+      "answer_snippet": "The document does not provide specific information on how increasing the number of layers or attention heads affects the performance of a Transformer model."
+    },
+    {
+      "id": "CP-05",
+      "category": "Comparative Analysis",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [
+        6,
+        7
+      ],
+      "answer_snippet": "The Transformer model is a sequence transduction model based entirely on attention, designed to replace recurrent layers commonly used in encoder-decoder architectures with multi-headed self-attention"
+    },
+    {
+      "id": "CP-06",
+      "category": "Comparative Analysis",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        6
+      ],
+      "answer_snippet": "Self-attention differs from full attention in that self-attention only considers the queries, keys, and values relative to the same sequence or representation, while full attention considers all seque"
+    },
+    {
+      "id": "H-01",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [],
+      "ground_truth": [],
+      "answer_snippet": "The paper discusses several quantum computing experiments and their implications for various fields such as cryptography, simulation, and optimization. However, it is important to note that the docume"
+    },
+    {
+      "id": "H-02",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        4,
+        5,
+        6,
+        11
+      ],
+      "ground_truth": [],
+      "answer_snippet": "The paper discusses attention mechanisms and their use in sequence modeling and transduction tasks. It explains how self-attention layers can help to model dependencies without regard to their distanc"
+    },
+    {
+      "id": "H-03",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [],
+      "answer_snippet": "The Transformer architecture, proposed by Vaswani et al. in the paper \"Attention is All You Need,\" has significantly impacted image classification benchmarks by introducing a new model called the Tran"
+    },
+    {
+      "id": "H-04",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [],
+      "answer_snippet": "The provided document does not provide specific details about GPT-4's architecture. It primarily discusses the Transformer model, which was introduced as an alternative to recurrent layers in encoder-"
+    },
+    {
+      "id": "H-05",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth": [],
+      "answer_snippet": "The Transformer architecture uses self-attention mechanisms to process input sequences without relying on recurrence (i.e., loops). It consists of two main components: self-attention and feed-forward "
+    },
+    {
+      "id": "H-06",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [],
+      "answer_snippet": "The document does not provide specific information on the proposed blockchain technology for secure model training. It only mentions using self-attention mechanisms and position-wise feed-forward netw"
+    },
+    {
+      "id": "H-07",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        9,
+        10
+      ],
+      "ground_truth": [],
+      "answer_snippet": "The paper proposes a method called \"Transformer\" for federated learning across edge devices. The main components of this method include an encoder and decoder architecture with self-attention mechanis"
+    },
+    {
+      "id": "H-08",
+      "category": "Hallucination Rejection",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [],
+      "ground_truth": [],
+      "answer_snippet": "The paper reports various experimental results and comparisons with other speech recognition systems. It presents a detailed analysis of different features used for training and testing models, as wel"
+    },
+    {
+      "id": "S-01",
+      "category": "Structural/Architectural",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 0.6666666666666666,
+      "pages_retrieved": [
+        1,
+        2,
+        3
+      ],
+      "ground_truth": [
+        2,
+        3,
+        4
+      ],
+      "answer_snippet": "The overall encoder-decoder structure of the Transformer is composed of stacked self-attention and point-wise, fully connected layers for both the encoder and decoder. The encoder has a stack of N = 6"
+    },
+    {
+      "id": "S-02",
+      "category": "Structural/Architectural",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer is a model architecture that uses solely attention mechanisms to compute representations of input and output sequences without using recurrence (RNNs) or convolutions. It relies on sel"
+    },
+    {
+      "id": "S-03",
+      "category": "Structural/Architectural",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth": [
+        3
+      ],
+      "answer_snippet": "Each encoder layer in the Transformer model contains two sub-layers: a multi-head self-attention (MHSA) layer and a point-wise feed-forward (PFF) layer. The MHSA layer performs attention over the inpu"
+    },
+    {
+      "id": "S-04",
+      "category": "Structural/Architectural",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ],
+      "recall": 0.0,
+      "pages_retrieved": [
+        2,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth": [
+        3
+      ],
+      "answer_snippet": "In the provided context, layer normalization is applied within each sub-layer of the encoder. The encoder consists of a stack of N = 6 identical layers, with two sub-layers in each layer. The first su"
+    },
+    {
+      "id": "S-05",
+      "category": "Structural/Architectural",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        2,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth": [
+        5
+      ],
+      "answer_snippet": "The Transformer weights for the embedding layers and the final linear layer in the model are shared by using multi-head attention mechanisms within the self-attention process. The input embeddings fro"
+    },
+    {
+      "id": "AE-01",
+      "category": "Adversarial Edge Case",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        1,
+        2
+      ],
+      "answer_snippet": "The paper \"Attention Is All You Need\" proposes a new model architecture called the Transformer, which exclusively uses attention mechanisms instead of recurrence and convolutions. This is the first tr"
+    },
+    {
+      "id": "AE-02",
+      "category": "Adversarial Edge Case",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        4
+      ],
+      "answer_snippet": "When d_k is very large in the dot product attention, it causes the dot products to grow extremely large in magnitude, pushing the softmax function into regions where it has extremely small gradients. "
+    },
+    {
+      "id": "AE-03",
+      "category": "Adversarial Edge Case",
+      "failures": [
+        "pipeline_failure"
+      ],
+      "recall": 1.0,
+      "pages_retrieved": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth": [
+        4
+      ],
+      "answer_snippet": "The paper does not explicitly compare additive attention and dot-product attention, but it provides some insights on their differences. Dot-product attention is similar in theoretical complexity as ad"
+    }
+  ],
+  "results": [
+    {
+      "id": "F-01",
+      "category": "Factual Retrieval",
+      "question": "What is the dimension of the keys d_k in Scaled Dot-Product Attention?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.3333333333333333,
+      "hallucination_pass": true,
+      "elapsed": 87.89998722076416,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.6,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "ground_truth_pages": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer model proposed in \"Attention Is All You Need\" relies solely on self-attention mechanisms, without using sequence-aligned RNNs or convolutions. This model consists of stacked self-attention and point-wise, fully connected layers for both the encoder and decoder. The encoder has six id",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-02",
+      "category": "Factual Retrieval",
+      "question": "How many attention heads does the Transformer model use?",
+      "is_negative": false,
+      "recall": 0.5,
+      "accuracy": 0.3333333333333333,
+      "hallucination_pass": true,
+      "elapsed": 20.40586829185486,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.6,
+      "pages": [
+        2,
+        4,
+        6,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer model uses a variable number of attention heads. In the provided context, it is mentioned that Table 3 rows (A) vary the number of attention heads and the attention key and value dimensions while keeping the amount of computation constant. However, the exact number of attention heads",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-03",
+      "category": "Factual Retrieval",
+      "question": "What is the model dimension d_model used in the Transformer?",
+      "is_negative": false,
+      "recall": 0.5,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 71.47057771682739,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.45,
+      "pages": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer architecture is a model that relies entirely on self-attention for computing representations of its input and output, without using sequence-to-sequence recurrence (i.e., recurrent layers). This architecture was designed by Ashish Vaswani, Illia Polosukhin, and others, and it has bee",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-04",
+      "category": "Factual Retrieval",
+      "question": "How many encoder layers are stacked in the base Transformer model?",
+      "is_negative": false,
+      "recall": 0.5,
+      "accuracy": 0.5,
+      "hallucination_pass": true,
+      "elapsed": 21.456031799316406,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.6,
+      "pages": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        3,
+        4
+      ],
+      "answer_snippet": "The document does not provide a specific number for the \"N\" value of encoder layers in the base Transformer model.",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-05",
+      "category": "Factual Retrieval",
+      "question": "What optimizer is used to train the Transformer model?",
+      "is_negative": false,
+      "recall": 0.0,
+      "accuracy": 0.0,
+      "hallucination_pass": true,
+      "elapsed": 23.194077491760254,
+      "grade": "A",
+      "trust": "high",
+      "confidence": 1.0,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "The Transformer model uses self-attention (also known as scaled dot-product attention) and multi-head attention to train its neural networks. These attention mechanisms allow the model to focus on different parts of the input sequence independently, which helps it capture complex patterns in the dat",
+      "failures": [
+        "zero_recall",
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-06",
+      "category": "Factual Retrieval",
+      "question": "What dataset is used for English-to-German translation?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.75,
+      "hallucination_pass": true,
+      "elapsed": 21.885941743850708,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.7,
+      "pages": [
+        1,
+        4,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        6
+      ],
+      "answer_snippet": "The dataset used for English-to-German translation in the context of the provided document is the WMT 2014 English-German dataset. This dataset consists of about 4.5 million sentence pairs, which were encoded using byte-pair encoding with a shared source-target vocabulary of around 37,000 tokens.",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-07",
+      "category": "Factual Retrieval",
+      "question": "What BLEU score does the Transformer achieve on English-to-German translation?",
+      "is_negative": false,
+      "recall": 0.5,
+      "accuracy": 0.6666666666666666,
+      "hallucination_pass": true,
+      "elapsed": 26.82085943222046,
+      "grade": "C",
+      "trust": "medium",
+      "confidence": 0.65,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        6,
+        7
+      ],
+      "answer_snippet": "The Transformer achieved a BLEU score of 46.6 on English-to-German translation, according to the provided document context. This information is not available in the given context.",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-08",
+      "category": "Factual Retrieval",
+      "question": "What is the dropout rate applied in the base Transformer model?",
+      "is_negative": false,
+      "recall": 0.0,
+      "accuracy": 0.6666666666666666,
+      "hallucination_pass": true,
+      "elapsed": 45.618595361709595,
+      "grade": "B",
+      "trust": "low",
+      "confidence": 0.45,
+      "pages": [
+        2,
+        4,
+        6,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "The provided document does not provide specific information on the dropout rate applied in the base Transformer model. It only mentions a dropout rate of 0.1 instead of 0.3, but it is unclear which specific model or context this refers to. Therefore, we cannot accurately determine what the dropout r",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-09",
+      "category": "Factual Retrieval",
+      "question": "What is the inner-layer dimensionality d_ff of the feed-forward network?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 64.57018613815308,
+      "grade": "B",
+      "trust": "low",
+      "confidence": 0.3,
+      "pages": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        4,
+        5
+      ],
+      "answer_snippet": "The inner-layer dimensionality of the feed-forward network is d_ff = 2048. This information can be found in the context provided, which states that each of the layers in the encoder and decoder contains a fully connected feed-forward network with two linear transformations with a ReLU activation in ",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-10",
+      "category": "Factual Retrieval",
+      "question": "How many decoder layers are stacked in the Transformer?",
+      "is_negative": false,
+      "recall": 0.5,
+      "accuracy": 0.6666666666666666,
+      "hallucination_pass": true,
+      "elapsed": 19.631538152694702,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.6,
+      "pages": [
+        2,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        3,
+        4
+      ],
+      "answer_snippet": "The Transformer has a stack of 6 identical layers (N = 6). Each layer contains two sub-layers: a multi-head self-attention mechanism and a simple, position-based feed-forward network.",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-11",
+      "category": "Factual Retrieval",
+      "question": "What training hardware and how many GPUs were used to train the base model?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 50.94387125968933,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.3,
+      "pages": [
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "The document does not provide specific information on how many GPUs were utilized in the training process. However, it mentions that training was conducted on one machine with 8 NVIDIA P100 GPUs.",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "F-12",
+      "category": "Factual Retrieval",
+      "question": "What label smoothing value is used during training?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.3333333333333333,
+      "hallucination_pass": true,
+      "elapsed": 44.588560819625854,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "The paper \"Attention is All You Need\" presents a new model called the Transformer, which is designed to handle language translation tasks. The Transformer uses a self-attention mechanism to process input sequences and achieve better performance than previous models such as Recurrent Neural Networks ",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-01",
+      "category": "Mathematical/Formula",
+      "question": "Write the Scaled Dot-Product Attention formula.",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 30.368868827819824,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.6,
+      "pages": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "answer_snippet": "The Scaled Dot-Product Attention formula is as follows:\n\nFor each query Q, key K, and value V:\n\n1. Scale the dot product of the query and key by dividing it by \u221adk (where dk is the dimension of keys):\n   scaled_dot_product = QK^\u22a4 / sqrt(dk)\n\n2. Apply a softmax function to obtain weights on the value",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-02",
+      "category": "Mathematical/Formula",
+      "question": "Why is the dot product divided by the square root of d_k in the attention formula?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.2,
+      "hallucination_pass": true,
+      "elapsed": 26.45910954475403,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.7,
+      "pages": [
+        4,
+        6,
+        7,
+        8
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "answer_snippet": "The dot product in the attention formula is divided by the square root of d_k for two main reasons: to normalize the dot product and make it comparable with the scale of other operations within the attention function. This normalization helps maintain a consistent computational complexity per layer,",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-03",
+      "category": "Mathematical/Formula",
+      "question": "What is the positional encoding formula used in the Transformer?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.6,
+      "hallucination_pass": true,
+      "elapsed": 79.47080516815186,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.55,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        5,
+        6
+      ],
+      "answer_snippet": "The Transformer model uses a type of attention mechanism called \"self-attention.\" This attention mechanism allows the model to focus on different parts of the input sequence simultaneously, which helps it understand the relationships between different elements in the sequence. The self-attention lay",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-04",
+      "category": "Mathematical/Formula",
+      "question": "What is the formula for the position-wise feed-forward network in the Transformer?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.2,
+      "hallucination_pass": true,
+      "elapsed": 56.177114725112915,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.55,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        4,
+        5
+      ],
+      "answer_snippet": "The position-wise feed-forward network in the Transformer is a type of linear layer that processes input and output at each position separately. It consists of two linear transformations (referred to as \"transformers\") followed by a non-linear activation function (ReLU) applied element-wise, i.e., f",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-05",
+      "category": "Mathematical/Formula",
+      "question": "How is Multi-Head Attention defined mathematically?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 39.63444471359253,
+      "grade": "A",
+      "trust": "high",
+      "confidence": 0.95,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "answer_snippet": "Multi-Head Attention is a mechanism used in deep learning models, particularly in natural language processing tasks like translation and language modeling. It is a key component of the Transformer model, which has shown to be more efficient than traditional recurrent neural networks (RNNs) or convol",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-06",
+      "category": "Mathematical/Formula",
+      "question": "What is the learning rate schedule formula used for training?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.75,
+      "hallucination_pass": true,
+      "elapsed": 55.27277159690857,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.62,
+      "pages": [
+        2,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10
+      ],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "The learning rate schedule formula used for training is described in the document, but specific details on how to implement it in machine learning frameworks like TensorFlow or PyTorch are not provided. The general formula for a learning rate schedule is min(step_num - 0.5, step_num * warmup_steps -",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-07",
+      "category": "Mathematical/Formula",
+      "question": "What is the computational complexity of self-attention per layer?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 72.21624088287354,
+      "grade": "B",
+      "trust": "low",
+      "confidence": 0.54,
+      "pages": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "ground_truth_pages": [
+        6
+      ],
+      "answer_snippet": "What is the computational complexity of self-attention? The Transformer model uses a multi-head attention mechanism called self-attention to process input sequences. Self-attention computes the similarity between every pair of positions in the input sequence and aggregates these similarities using a",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "M-08",
+      "category": "Mathematical/Formula",
+      "question": "What is the maximum path length for self-attention versus recurrence?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.2,
+      "hallucination_pass": true,
+      "elapsed": 66.94681358337402,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.55,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        6
+      ],
+      "answer_snippet": "Self-attention mechanisms and recurrent layers have different computational efficiencies. Self-attention (Transformer) models rely on attention mechanisms to compute representations of input sequences, while Recurrent Neural Networks (RNNs) use recurrence to process sequential data. \n\nIn terms of co",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-01",
+      "category": "Causal Multi-Hop",
+      "question": "Why does the Transformer utilize masking in the decoder self-attention?",
+      "is_negative": false,
+      "recall": 0.6666666666666666,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 23.749511241912842,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.68,
+      "pages": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        2,
+        3,
+        5
+      ],
+      "answer_snippet": "The Transformer utilizes masking in the decoder self-attention to prevent leftward information flow and preserve the auto-regressive property of the model. This is done by masking out (setting to -\u221e) all values in the input of the softmax that correspond to illegal connections, as shown in Figure 2.",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-02",
+      "category": "Causal Multi-Hop",
+      "question": "Why were recurrent architectures replaced by attention in sequence-to-sequence tasks?",
+      "is_negative": false,
+      "recall": 0.6666666666666666,
+      "accuracy": 0.5,
+      "hallucination_pass": true,
+      "elapsed": 36.509197473526,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        1,
+        2,
+        3
+      ],
+      "ground_truth_pages": [
+        1,
+        2,
+        6
+      ],
+      "answer_snippet": "The attention mechanism was replaced by recurrent architectures in sequence-to-sequence tasks due to its ability to model dependencies between input and output without regard to their distance in the sequences. The Transformer, a model architecture that relies entirely on self-attention, reduces seq",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-03",
+      "category": "Causal Multi-Hop",
+      "question": "How does positional encoding allow the Transformer to handle sequence order?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.6,
+      "hallucination_pass": true,
+      "elapsed": 33.84683632850647,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        5,
+        6
+      ],
+      "answer_snippet": "Positional encoding allows the Transformer to handle sequence order by adding special values to the input embeddings at each position in the sequence. These positional encodings are based on sine and cosine functions, and they have the same dimension as the input embeddings (dmodel). This allows the",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-04",
+      "category": "Causal Multi-Hop",
+      "question": "Why is residual connection important in each sub-layer of the Transformer?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.8,
+      "hallucination_pass": true,
+      "elapsed": 23.967158317565918,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.7,
+      "pages": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth_pages": [
+        3,
+        4
+      ],
+      "answer_snippet": "Residual connections are important in each sub-layer of the Transformer model to help alleviate the problem of vanishing gradients and improve the model's learning ability. The document mentions using a residual connection around each of the two sub-layers, followed by layer normalization. This mean",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-05",
+      "category": "Causal Multi-Hop",
+      "question": "Why does the encoder-decoder attention use keys and values from the encoder?",
+      "is_negative": false,
+      "recall": 0.5,
+      "accuracy": 0.2,
+      "hallucination_pass": true,
+      "elapsed": 25.257476568222046,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        3,
+        4
+      ],
+      "answer_snippet": "Self-attention layers are compared to recurrent and convolutional layers in terms of computational complexity, parallelism, and the ability to learn long-range dependencies. The main advantage of self-attention over recurrent layers is that it does not require recurrence, which can make the model mo",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-06",
+      "category": "Causal Multi-Hop",
+      "question": "Why does using multiple attention heads improve learning compared to single attention?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 33.56083941459656,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.6,
+      "pages": [
+        1,
+        4,
+        5,
+        6,
+        8
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "answer_snippet": "Using multiple attention heads improves learning compared to a single attention head by enabling the model to consider relationships between different positions in the input sequence simultaneously. This allows the model to capture long-range dependencies more effectively and leads to better perform",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-07",
+      "category": "Causal Multi-Hop",
+      "question": "Why does label smoothing hurt perplexity but improve BLEU?",
+      "is_negative": false,
+      "recall": 0.0,
+      "accuracy": 0.6,
+      "hallucination_pass": true,
+      "elapsed": 18.41836905479431,
+      "grade": "A",
+      "trust": "high",
+      "confidence": 0.75,
+      "pages": [],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "Label smoothing hurts perplexity but improves BLEU because it helps to reduce overfitting and improve generalization of a model during training. When using label smoothing, we introduce some randomness into the prediction process by assigning small probabilities to all possible labels instead of jus",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "C-08",
+      "category": "Causal Multi-Hop",
+      "question": "How does the Transformer achieve constant path length between positions?",
+      "is_negative": false,
+      "recall": 0.0,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 25.628273725509644,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        1,
+        2,
+        3
+      ],
+      "ground_truth_pages": [
+        6
+      ],
+      "answer_snippet": "The Transformer achieves constant path length between positions by relying entirely on self-attention instead of recurrence or convolutions in its model architecture. This allows for significantly more parallelization and reduces the number of operations required to relate dependencies between dista",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "CP-01",
+      "category": "Comparative Analysis",
+      "question": "How does the Transformer's approach to sequence modeling differ from RNNs and LSTMs?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 84.46002912521362,
+      "grade": "B",
+      "trust": "low",
+      "confidence": 0.55,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth_pages": [
+        1,
+        2,
+        6
+      ],
+      "answer_snippet": "1) Computational Efficiency and Memory Usage Comparison: The Transformer model replaces recurrent layers (such as RNNs and LSTMs) with multi-headed self-attention mechanisms. This results in a significant reduction of computational complexity per layer, allowing Transformers to be trained faster tha",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "CP-02",
+      "category": "Comparative Analysis",
+      "question": "What are the advantages of self-attention over convolutional layers for sequence tasks?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.6,
+      "hallucination_pass": true,
+      "elapsed": 40.594451665878296,
+      "grade": "A",
+      "trust": "high",
+      "confidence": 0.95,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        6
+      ],
+      "answer_snippet": "The advantages of self-attention over convolutional layers for sequence tasks include:\n\n1. Parallelization: Self-attention allows for significantly more parallelization than convolutional layers. This is because with self-attention, you can compute dependencies between any two positions in the input",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "CP-03",
+      "category": "Comparative Analysis",
+      "question": "How does sinusoidal positional encoding compare to learned positional encoding?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.2,
+      "hallucination_pass": true,
+      "elapsed": 75.73550939559937,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.52,
+      "pages": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        5,
+        6
+      ],
+      "answer_snippet": "The Transformer model presented in the given document is a type of neural network architecture designed for sequence transduction tasks such as machine translation. It replaces traditional recurrent layers (e.g., LSTM, GRU) with a special kind of layer called \"multi-head self-attention\" to handle lo",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "CP-04",
+      "category": "Comparative Analysis",
+      "question": "How does the large Transformer model differ from the base model in architecture?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.0,
+      "hallucination_pass": true,
+      "elapsed": 54.88803744316101,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.65,
+      "pages": [
+        1,
+        2,
+        3,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        7
+      ],
+      "answer_snippet": "The document does not provide specific information on how increasing the number of layers or attention heads affects the performance of a Transformer model.",
+      "failures": [
+        "low_accuracy",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "CP-05",
+      "category": "Comparative Analysis",
+      "question": "How does the Transformer's BLEU score compare to prior state-of-the-art models?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.75,
+      "hallucination_pass": true,
+      "elapsed": 74.95186495780945,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.54,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        6,
+        7
+      ],
+      "answer_snippet": "The Transformer model is a sequence transduction model based entirely on attention, designed to replace recurrent layers commonly used in encoder-decoder architectures with multi-headed self-attention (the original paper does not provide specific BLEU scores for comparison). The document states that",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "CP-06",
+      "category": "Comparative Analysis",
+      "question": "How does restricted self-attention differ from full self-attention?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 25.043538093566895,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        6
+      ],
+      "answer_snippet": "Self-attention differs from full attention in that self-attention only considers the queries, keys, and values relative to the same sequence or representation, while full attention considers all sequences or representations simultaneously. In the context of the provided document, this means that sel",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-01",
+      "category": "Hallucination Rejection",
+      "question": "What are the quantum computing experiments mentioned in this paper?",
+      "is_negative": true,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": false,
+      "elapsed": 18.838456869125366,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [],
+      "ground_truth_pages": [],
+      "answer_snippet": "The paper discusses several quantum computing experiments and their implications for various fields such as cryptography, simulation, and optimization. However, it is important to note that the document does not provide specific details about which exact quantum computing experiments are being refer",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-02",
+      "category": "Hallucination Rejection",
+      "question": "What does the paper say about reinforcement learning from human feedback?",
+      "is_negative": true,
+      "recall": 1.0,
+      "accuracy": 0.0,
+      "hallucination_pass": true,
+      "elapsed": 52.10353493690491,
+      "grade": "C",
+      "trust": "medium",
+      "confidence": 0.65,
+      "pages": [
+        2,
+        4,
+        5,
+        6,
+        11
+      ],
+      "ground_truth_pages": [],
+      "answer_snippet": "The paper discusses attention mechanisms and their use in sequence modeling and transduction tasks. It explains how self-attention layers can help to model dependencies without regard to their distance in input or output sequences, making them faster than recurrent layers with a constant number of s",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-03",
+      "category": "Hallucination Rejection",
+      "question": "What is the Transformer's performance on image classification benchmarks?",
+      "is_negative": true,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 87.40109777450562,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.62,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [],
+      "answer_snippet": "The Transformer architecture, proposed by Vaswani et al. in the paper \"Attention is All You Need,\" has significantly impacted image classification benchmarks by introducing a new model called the Transformer. This model relies entirely on self-attention mechanisms for computing representations of in",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-04",
+      "category": "Hallucination Rejection",
+      "question": "What is GPT-4's architecture described in this paper?",
+      "is_negative": true,
+      "recall": 0.0,
+      "accuracy": 1.0,
+      "hallucination_pass": false,
+      "elapsed": 111.8846971988678,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.75,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [],
+      "answer_snippet": "The provided document does not provide specific details about GPT-4's architecture. It primarily discusses the Transformer model, which was introduced as an alternative to recurrent layers in encoder-decoder architectures. The paper focuses on explaining and justifying the use of self-attention in t",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-05",
+      "category": "Hallucination Rejection",
+      "question": "Describe the graph neural network component of the Transformer architecture.",
+      "is_negative": true,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 61.13871932029724,
+      "grade": "C",
+      "trust": "low",
+      "confidence": 0.45,
+      "pages": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth_pages": [],
+      "answer_snippet": "The Transformer architecture uses self-attention mechanisms to process input sequences without relying on recurrence (i.e., loops). It consists of two main components: self-attention and feed-forward neural networks (FFN). Self-attention allows the model to focus on different parts of the input sequ",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-06",
+      "category": "Hallucination Rejection",
+      "question": "What blockchain technology does this paper propose for secure model training?",
+      "is_negative": true,
+      "recall": 0.0,
+      "accuracy": 1.0,
+      "hallucination_pass": false,
+      "elapsed": 54.08753776550293,
+      "grade": "C",
+      "trust": "high",
+      "confidence": 0.9,
+      "pages": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [],
+      "answer_snippet": "The document does not provide specific information on the proposed blockchain technology for secure model training. It only mentions using self-attention mechanisms and position-wise feed-forward networks in a Transformer model for language translation tasks. There is no mention of blockchain techno",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-07",
+      "category": "Hallucination Rejection",
+      "question": "What is the paper's proposed method for federated learning across edge devices?",
+      "is_negative": true,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 76.26095151901245,
+      "grade": "B",
+      "trust": "low",
+      "confidence": 0.45,
+      "pages": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        9,
+        10
+      ],
+      "ground_truth_pages": [],
+      "answer_snippet": "The paper proposes a method called \"Transformer\" for federated learning across edge devices. The main components of this method include an encoder and decoder architecture with self-attention mechanisms, which are composed of six identical layers each. The model uses learned embeddings to convert in",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "H-08",
+      "category": "Hallucination Rejection",
+      "question": "What speech recognition results does this paper report?",
+      "is_negative": true,
+      "recall": 1.0,
+      "accuracy": 0.0,
+      "hallucination_pass": false,
+      "elapsed": 17.480872869491577,
+      "grade": "A",
+      "trust": "high",
+      "confidence": 0.77,
+      "pages": [],
+      "ground_truth_pages": [],
+      "answer_snippet": "The paper reports various experimental results and comparisons with other speech recognition systems. It presents a detailed analysis of different features used for training and testing models, as well as their performance on several datasets. The authors also discuss the limitations of current spee",
+      "failures": [
+        "false_acceptance",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "S-01",
+      "category": "Structural/Architectural",
+      "question": "Describe the overall encoder-decoder structure of the Transformer.",
+      "is_negative": false,
+      "recall": 0.6666666666666666,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 31.24271845817566,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        1,
+        2,
+        3
+      ],
+      "ground_truth_pages": [
+        2,
+        3,
+        4
+      ],
+      "answer_snippet": "The overall encoder-decoder structure of the Transformer is composed of stacked self-attention and point-wise, fully connected layers for both the encoder and decoder. The encoder has a stack of N = 6 identical layers, each containing two sub-layers. The first sub-layer is a multi-head self-attentio",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "S-02",
+      "category": "Structural/Architectural",
+      "question": "What are the three different ways attention is used within the Transformer?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.6,
+      "hallucination_pass": true,
+      "elapsed": 29.503469228744507,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        4,
+        5
+      ],
+      "answer_snippet": "The Transformer is a model architecture that uses solely attention mechanisms to compute representations of input and output sequences without using recurrence (RNNs) or convolutions. It relies on self-attention, which relates different positions within a single sequence to compute a representation ",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "S-03",
+      "category": "Structural/Architectural",
+      "question": "What sub-layers does each encoder layer contain?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.5,
+      "hallucination_pass": true,
+      "elapsed": 75.58687448501587,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.8,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ground_truth_pages": [
+        3
+      ],
+      "answer_snippet": "Each encoder layer in the Transformer model contains two sub-layers: a multi-head self-attention (MHSA) layer and a point-wise feed-forward (PFF) layer. The MHSA layer performs attention over the input sequence, while the PFF layer applies a linear transformation to the output of the MHSA layer. Sep",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "S-04",
+      "category": "Structural/Architectural",
+      "question": "Where is layer normalization applied within each sub-layer?",
+      "is_negative": false,
+      "recall": 0.0,
+      "accuracy": 0.4,
+      "hallucination_pass": true,
+      "elapsed": 19.71234393119812,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.7,
+      "pages": [
+        2,
+        5,
+        6,
+        7,
+        9
+      ],
+      "ground_truth_pages": [
+        3
+      ],
+      "answer_snippet": "In the provided context, layer normalization is applied within each sub-layer of the encoder. The encoder consists of a stack of N = 6 identical layers, with two sub-layers in each layer. The first sub-layer is a multi-head self-attention mechanism, and the second sub-layer is a simple, position-bas",
+      "failures": [
+        "zero_recall",
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "S-05",
+      "category": "Structural/Architectural",
+      "question": "How are the Transformer weights shared between the embedding layers and the final linear layer?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.8,
+      "hallucination_pass": true,
+      "elapsed": 27.52630639076233,
+      "grade": "B",
+      "trust": "medium",
+      "confidence": 0.7,
+      "pages": [
+        2,
+        4,
+        5,
+        6,
+        9
+      ],
+      "ground_truth_pages": [
+        5
+      ],
+      "answer_snippet": "The Transformer weights for the embedding layers and the final linear layer in the model are shared by using multi-head attention mechanisms within the self-attention process. The input embeddings from both encoder and decoder stacks are concatenated, projected, and passed through a feedforward netw",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "AE-01",
+      "category": "Adversarial Edge Case",
+      "question": "What does this paper say about attention is all you need?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "hallucination_pass": true,
+      "elapsed": 31.948359727859497,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.75,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        1,
+        2
+      ],
+      "answer_snippet": "The paper \"Attention Is All You Need\" proposes a new model architecture called the Transformer, which exclusively uses attention mechanisms instead of recurrence and convolutions. This is the first transduction model that relies solely on self-attention for computing representations of input and out",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "AE-02",
+      "category": "Adversarial Edge Case",
+      "question": "What happens when d_k is very large in the dot product attention?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.8,
+      "hallucination_pass": true,
+      "elapsed": 25.869985818862915,
+      "grade": "A",
+      "trust": "high",
+      "confidence": 0.85,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "answer_snippet": "When d_k is very large in the dot product attention, it causes the dot products to grow extremely large in magnitude, pushing the softmax function into regions where it has extremely small gradients. This effect can be counteracted by scaling the dot products by \u221adk. Multi-Head Attention allows the ",
+      "failures": [
+        "pipeline_failure"
+      ]
+    },
+    {
+      "id": "AE-03",
+      "category": "Adversarial Edge Case",
+      "question": "Is additive attention better than dot-product attention according to this paper?",
+      "is_negative": false,
+      "recall": 1.0,
+      "accuracy": 0.6,
+      "hallucination_pass": true,
+      "elapsed": 176.41974472999573,
+      "grade": "B",
+      "trust": "high",
+      "confidence": 0.75,
+      "pages": [
+        4,
+        5,
+        6
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "answer_snippet": "The paper does not explicitly compare additive attention and dot-product attention, but it provides some insights on their differences. Dot-product attention is similar in theoretical complexity as additive attention; however, due to the scaling factor of 1\u221adk, the dot products grow large in magnitu",
+      "failures": [
+        "pipeline_failure"
+      ]
+    }
+  ]
+}
