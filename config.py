@@ -15,7 +15,7 @@ REASONING_MODEL = "deepseek-llm:7b"  # DeepSeek for factual reasoning and valida
 DEFAULT_MODEL = "qwen2.5-coder:3b"
 
 # API Settings
-API_TIMEOUT = 120
+API_TIMEOUT = 300
 API_RETRIES = 3
 MAX_TOKENS = 1500
 TEMPERATURE = 0.0
