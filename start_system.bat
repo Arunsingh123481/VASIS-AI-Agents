@@ -35,7 +35,7 @@ echo   [6] Exit
 echo.
 echo ────────────────────────────────────────────────────────────────
 echo.
-set /p choice="  ╰──> Enter your selection (1-6): "
+set /p choice="  ╰──▶ Enter your selection (1-6): "
 
 if "%choice%"=="1" goto start_api
 if "%choice%"=="2" goto start_chat
@@ -68,7 +68,7 @@ echo ┌────────────────────────
 echo │               LAUNCHING INTERACTIVE CLI CHAT                 │
 echo └──────────────────────────────────────────────────────────────┘
 echo.
-set /p pdf="  ╰──> Enter absolute or relative path of PDF: "
+set /p pdf="  ╰──▶ Enter absolute or relative path of PDF: "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
@@ -87,7 +87,7 @@ echo ┌────────────────────────
 echo │          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)          │
 echo └──────────────────────────────────────────────────────────────┘
 echo.
-set /p pdf="  ╰──> Enter the path of the PDF to index: "
+set /p pdf="  ╰──▶ Enter the path of the PDF to index: "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
