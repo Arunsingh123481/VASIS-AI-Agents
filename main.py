@@ -25,14 +25,14 @@ OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 
 def _print_banner():
     banner_text = """
- [bold violet]██████╗  █████╗  ██████╗ ███████╗██╗███╗   ██╗██████╗ ███████╗██╗  ██╗[/bold violet]
- [bold violet]██╔══██╗██╔══██╗██╔════╝ ██╔════╝██║████╗  ██║██╔══██╗██╔════╝╚██╗██╔╝[/bold violet]
- [bold violet]██████╔╝███████║██║  ███╗█████╗  ██║██╔██╗ ██║██║  ██║█████╗   ╚███╔╝ [/bold violet]
- [bold violet]██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║██║╚██╗██║██║  ██║██╔══╝   ██╔██╗ [/bold violet]
- [bold violet]██║     ██║  ██║╚██████╔╝███████╗██║██║ ╚████║██████╔╝███████╗██╔╝ ██╗[/bold violet]
- [bold violet]╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═╝[/bold violet]
+ [bold violet] ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗[/bold violet]
+ [bold violet] ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║[/bold violet]
+ [bold violet] ██║   ██║███████║███████╗██║███████╗    ███████║██║[/bold violet]
+ [bold violet] ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║[/bold violet]
+ [bold violet]  ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║[/bold violet]
+ [bold violet]   ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝[/bold violet]
 
-          [bold cyan]⚡ PageIndex-RE-MSE AI — 14-Agent Consensus Engine ⚡[/bold cyan]
+          [bold cyan]⚡ VASIS AI-RE-MSE — 14-Agent Consensus Engine ⚡[/bold cyan]
     """
     console.print(Panel(banner_text, border_style="violet", box=box.ROUNDED, expand=False))
 
@@ -89,7 +89,7 @@ def _save_agent_output(
 
 @click.group()
 def cli():
-    """PageIndex-RE-MSE CRDB Hybrid RAG System — Vectorless + Multi-Agent RAG"""
+    """VASIS AI-RE-MSE CRDB Hybrid RAG System — Vectorless + Multi-Agent RAG"""
     pass
 
 
@@ -162,7 +162,7 @@ def ask(pdf_path, question, model, top_k, passes, no_provenance, json_output):
         # Display response inside a gorgeous Panel with Markdown rendering
         console.print(Panel(
             Markdown(result["answer"]),
-            title="[bold green]✓ PageIndex AI Response[/bold green]",
+            title="[bold green]✓ VASIS AI Response[/bold green]",
             subtitle=f"[bold green]Trust: {result.get('trust_level', 'low').upper()} ({result.get('confidence', 0.0)}) | Grade: {result.get('pipeline_grade', 'F')}[/bold green]",
             border_style="green",
             box=box.ROUNDED,
@@ -315,7 +315,7 @@ def chat(pdf_path, model, top_k, passes):
             # Display response inside a gorgeous Panel with Markdown rendering
             console.print(Panel(
                 Markdown(result["answer"]),
-                title="[bold green]✓ PageIndex Response[/bold green]",
+                title="[bold green]✓ VASIS AI Response[/bold green]",
                 subtitle=f"[bold green]Trust: {result.get('trust_level', 'low').upper()} ({result.get('confidence', 0.0)}) | Grade: {result.get('pipeline_grade', 'F')}[/bold green]",
                 border_style="green",
                 box=box.ROUNDED,

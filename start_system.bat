@@ -9,22 +9,22 @@ if exist ".venv\Scripts\activate.bat" (
     call "venv\Scripts\activate.bat"
 )
 
-title PageIndex-RE-MSE CRDB System Control Panel
+title VASIS AI-RE-MSE CRDB System Control Panel
 color 0d
 cls
 
 :menu
 cls
 echo ┌──────────────────────────────────────────────────────────────┐
-echo │          PAGEINDEX-RE-MSE AI - CONTROL PANEL                 │
+echo │               VASIS AI-RE-MSE - CONTROL PANEL                │
 echo └──────────────────────────────────────────────────────────────┘
 echo.
-echo      ██████╗  █████╗  ██████╗ ███████╗██╗███╗   ██╗██████╗ 
-echo      ██╔══██╗██╔══██╗██╔════╝ ██╔════╝██║████╗  ██║██╔══██╗
-echo      ██████╔╝███████║██║  ███╗█████╗  ██║██╔██╗ ██║██║  ██║
-echo      ██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║██║╚██╗██║██║  ██║
-echo      ██║     ██║  ██║╚██████╔╝███████╗██║██║ ╚████║██████╔╝
-echo      ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝╚═════╝ 
+echo       ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗
+echo       ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║
+echo       ██║   ██║███████║███████╗██║███████╗    ███████║██║
+echo       ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║
+echo        ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║
+echo         ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝
 echo.
 echo   [1] Start Web RAG App Server (FastAPI + Chat UI)
 echo   [2] Launch Interactive CLI RAG Chat
