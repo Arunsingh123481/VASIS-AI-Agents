@@ -25,16 +25,16 @@ OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 
 def _print_banner():
     banner_text = """
- [bold violet] ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗[/bold violet]
- [bold violet] ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║[/bold violet]
- [bold violet] ██║   ██║███████║███████╗██║███████╗    ███████║██║[/bold violet]
- [bold violet] ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║[/bold violet]
- [bold violet]  ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║[/bold violet]
- [bold violet]   ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝[/bold violet]
+ [bold orange1] ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗[/bold orange1]
+ [bold orange1] ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║[/bold orange1]
+ [bold orange1] ██║   ██║███████║███████╗██║███████╗    ███████║██║[/bold orange1]
+ [bold orange1] ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║[/bold orange1]
+ [bold orange1]  ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║[/bold orange1]
+ [bold orange1]   ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝[/bold orange1]
 
           [bold cyan]⚡ VASIS AI-RE-MSE — 14-Agent Consensus Engine ⚡[/bold cyan]
     """
-    console.print(Panel(banner_text, border_style="violet", box=box.ROUNDED, expand=False))
+    console.print(Panel(banner_text, border_style="orange1", box=box.ROUNDED, expand=False))
 
 
 def _save_agent_output(
@@ -204,7 +204,7 @@ def chat(pdf_path, model, top_k, passes):
         rag.ingest(pdf_path)
 
     console.print(Panel(
-        f"[bold violet]Document:[/bold violet] [cyan]{os.path.basename(pdf_path)}[/cyan]\n\n"
+        f"[bold orange1]Document:[/bold orange1] [cyan]{os.path.basename(pdf_path)}[/cyan]\n\n"
         "Ask questions about the paper. The 14-Agent Swarm will synthesize answers.\n"
         "Commands: [bold cyan]tree[/bold cyan] (show index) | [bold cyan]stats[/bold cyan] (show stats) | [bold cyan]quit[/bold cyan] (exit)",
         title="[bold green]● Swarm Chat Active[/bold green]",
@@ -224,7 +224,7 @@ def chat(pdf_path, model, top_k, passes):
     while True:
         try:
             # Claude Code style user prompt
-            question = Prompt.ask("\n[bold violet]╭── user[/bold violet]\n[bold violet]╰──>[/bold violet]")
+            question = Prompt.ask("\n[bold orange1]╭── user[/bold orange1]\n[bold orange1]╰──>[/bold orange1]")
 
             if not question.strip():
                 continue

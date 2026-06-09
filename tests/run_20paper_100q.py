@@ -456,7 +456,25 @@ def run_20paper_100q():
     all_contradictions = []
     total_q = len(QUERIES)
 
+    # Load from checkpoint if exists
+    checkpoint_path = os.path.join(out_dir, "production20_checkpoint.json")
+    start_index = 0
+    if os.path.exists(checkpoint_path):
+        try:
+            with open(checkpoint_path, "r", encoding="utf-8") as f:
+                checkpoint = json.load(f)
+            results = checkpoint.get("results", [])
+            paper_scores = checkpoint.get("paper_scores", {p["id"]: {"recall":[], "accuracy":[], "safety":[], "elapsed":[]} for p in PAPERS})
+            domain_scores = checkpoint.get("domain_scores", {})
+            all_contradictions = checkpoint.get("all_contradictions", [])
+            start_index = len(results)
+            console.print(f"[bold green]✓ Loaded checkpoint. Resuming from query {start_index+1}/{total_q}[/bold green]")
+        except Exception as e:
+            console.print(f"[bold red]Failed to load checkpoint ({e}). Starting from scratch.[/bold red]")
+
     for i, (pid, category, question, keywords) in enumerate(QUERIES):
+        if i < start_index:
+            continue
         if pid not in rag_instances:
             console.print(f"[dim]  [{i+1}/{total_q}] {pid} SKIPPED (ingest failed)[/dim]")
             continue
@@ -554,6 +572,19 @@ def run_20paper_100q():
         if r["failures"]:
             for f in r["failures"]:
                 console.print(f"  [red]  >> {f}[/red]")
+
+        # Save intermediate checkpoint
+        try:
+            checkpoint = {
+                "results": results,
+                "paper_scores": paper_scores,
+                "domain_scores": domain_scores,
+                "all_contradictions": all_contradictions
+            }
+            with open(checkpoint_path, "w", encoding="utf-8") as f:
+                json.dump(checkpoint, f, indent=2, default=str)
+        except Exception as cp_err:
+            console.print(f"[dim red]Warning: failed to save checkpoint ({cp_err})[/dim red]")
 
     # ── Phase 3: Final scorecard ───────────────────────────────────────────────
     console.print(f"\n[bold magenta]{'='*65}[/bold magenta]")

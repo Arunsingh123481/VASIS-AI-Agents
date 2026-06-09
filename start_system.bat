@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -9,70 +9,50 @@ if exist ".venv\Scripts\activate.bat" (
     call "venv\Scripts\activate.bat"
 )
 
-title VASIS AI-RE-MSE CRDB System Control Panel
-color 0d
+title VASIS AI System Control Panel
 cls
 
 :menu
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │               VASIS AI-RE-MSE - CONTROL PANEL                │
-echo └──────────────────────────────────────────────────────────────┘
+echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
+echo [38;5;208m│                 [1mVASIS AI - SYSTEM CONTROL PANEL[0m[38;5;208m              │[0m
+echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
 echo.
-echo       ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗
-echo       ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║
-echo       ██║   ██║███████║███████╗██║███████╗    ███████║██║
-echo       ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║
-echo        ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║
-echo         ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝
+echo       [38;5;208m██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗[0m
+echo       [38;5;208m██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║[0m
+echo       [38;5;208m██║   ██║███████║███████╗██║███████╗    ███████║██║[0m
+echo       [38;5;208m╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║[0m
+echo       [38;5;208m ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║[0m
+echo       [38;5;208m  ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝[0m
 echo.
-echo   [1] Start Web RAG App Server (FastAPI + Chat UI)
-echo   [2] Launch Interactive CLI RAG Chat
-echo   [3] Index a New PDF Document
-echo   [4] List Indexed Documents in Local Vault
-echo   [5] Check Ollama Local Server Status
-echo   [6] Exit
+echo   [38;5;45m[1][0m [1mLaunch Interactive CLI RAG Chat[0m  [38;5;244m(python main.py chat)[0m
+echo   [38;5;45m[2][0m [1mIndex a New PDF Document[0m        [38;5;244m(python main.py index)[0m
+echo   [38;5;45m[3][0m [1mList Indexed Documents in Local Vault[0m
+echo   [38;5;45m[4][0m [1mCheck Ollama Local Server Status[0m
+echo   [38;5;45m[5][0m [38;5;196mExit[0m
 echo.
-echo ────────────────────────────────────────────────────────────────
+echo [38;5;208m────────────────────────────────────────────────────────────────[0m
 echo.
-set /p choice="  ╰──▶ Enter your selection (1-6): "
+set /p choice="  [38;5;208m╰──▶[0m [1mEnter your selection (1-5):[0m "
 
-if "%choice%"=="1" goto start_api
-if "%choice%"=="2" goto start_chat
-if "%choice%"=="3" goto index_doc
-if "%choice%"=="4" goto list_docs
-if "%choice%"=="5" goto check_ollama
-if "%choice%"=="6" goto exit
-goto menu
-
-:start_api
-cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │                   STARTING FASTAPI SERVER                    │
-echo └──────────────────────────────────────────────────────────────┘
-echo.
-echo   ● REST API Docs:   http://localhost:8001/docs
-echo   ● Interactive UI:  http://localhost:8001/ui
-echo.
-echo   * Press Ctrl+C in this terminal to stop server.
-echo.
-echo ────────────────────────────────────────────────────────────────
-echo.
-python api.py
-pause
+if "%choice%"=="1" goto start_chat
+if "%choice%"=="2" goto index_doc
+if "%choice%"=="3" goto list_docs
+if "%choice%"=="4" goto check_ollama
+if "%choice%"=="5" goto exit
 goto menu
 
 :start_chat
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │               LAUNCHING INTERACTIVE CLI CHAT                 │
-echo └──────────────────────────────────────────────────────────────┘
+echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
+echo [38;5;208m│               LAUNCHING INTERACTIVE CLI CHAT                 │[0m
+echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
 echo.
-set /p pdf="  ╰──▶ Enter absolute or relative path of PDF: "
+set /p pdf="  [38;5;208m╰──▶[0m [1mEnter absolute or relative path of PDF:[0m "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
-    echo   [ERROR] File "%pdf%" does not exist! Please check the path.
+    echo   [38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.[0m
     echo.
     pause
     goto menu
@@ -83,15 +63,15 @@ goto menu
 
 :index_doc
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)          │
-echo └──────────────────────────────────────────────────────────────┘
+echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
+echo [38;5;208m│          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)          │[0m
+echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
 echo.
-set /p pdf="  ╰──▶ Enter the path of the PDF to index: "
+set /p pdf="  [38;5;208m╰──▶[0m [1mEnter the path of the PDF to index:[0m "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
-    echo   [ERROR] File "%pdf%" does not exist! Please check the path.
+    echo   [38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.[0m
     echo.
     pause
     goto menu
@@ -102,9 +82,9 @@ goto menu
 
 :list_docs
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │            INDEXED DOCUMENTS IN LOCAL CACHE VAULT            │
-echo └──────────────────────────────────────────────────────────────┘
+echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
+echo [38;5;208m│            INDEXED DOCUMENTS IN LOCAL CACHE VAULT            │[0m
+echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
 echo.
 python main.py list
 echo.
@@ -113,23 +93,23 @@ goto menu
 
 :check_ollama
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │              OLLAMA LOCAL SERVER SERVICE CHECK               │
-echo └──────────────────────────────────────────────────────────────┘
+echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
+echo [38;5;208m│              OLLAMA LOCAL SERVER SERVICE CHECK               │[0m
+echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
 echo.
 echo   Checking connection to Ollama at http://127.0.0.1:11435...
 echo.
 powershell -Command "try { $r = Invoke-RestMethod -Uri http://127.0.0.1:11435/api/tags; echo '  [STATUS] local Ollama service is ACTIVE'; echo ''; echo '  Downloaded Models:'; foreach($m in $r.models) { echo ('    - ' + $m.name + ' (' + [math]::round($m.size / 1GB, 2) + ' GB)') } } catch { echo '  [STATUS] Ollama unreachable on port 11435!'; echo '  Please run: ollama serve' }"
 echo.
-echo ────────────────────────────────────────────────────────────────
+echo [38;5;208m────────────────────────────────────────────────────────────────[0m
 pause
 goto menu
 
 :exit
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │               EXITING CONTROL PANEL... GOODBYE!              │
-echo └──────────────────────────────────────────────────────────────┘
+echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
+echo [38;5;208m│               EXITING CONTROL PANEL... GOODBYE!              │[0m
+echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
 echo.
 timeout /t 2 >nul
 exit
