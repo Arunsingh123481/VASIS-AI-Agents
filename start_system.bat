@@ -95,18 +95,48 @@ echo.
 echo   Load 2+ PDFs into one session. Ask cross-paper questions
 echo   like "Do these papers contradict each other on accuracy?"
 echo.
-echo   Enter PDF paths separated by spaces:
+echo   %ESC%[38;5;244mEnter ONE PDF path per line. Type DONE when finished.%ESC%[0m
+echo   %ESC%[38;5;244mPaths with spaces are handled automatically.%ESC%[0m
 echo.
-set /p pdfs="  %ESC%[38;5;208m^>%ESC%[0m "
-set "pdfs=%pdfs:"=%"
-if "%pdfs%"=="" (
+set "vault_cmd=python main.py vault"
+set "pdf_count=0"
+
+:vault_add_pdf
+set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mPDF path (or DONE to start):%ESC%[0m "
+:: Strip surrounding quotes the user may have added
+set "pdf=%pdf:"=%"
+:: Check if user is finished
+if /i "%pdf%"=="done" goto vault_run
+if /i "%pdf%"=="DONE" goto vault_run
+:: Ignore blank input
+if "%pdf%"=="" goto vault_add_pdf
+:: Validate the file exists
+if not exist "%pdf%" (
     echo.
-    echo   %ESC%[38;5;196m[ERROR] No PDFs provided!%ESC%[0m
+    echo   %ESC%[38;5;196m[ERROR] File not found: %pdf%%ESC%[0m
+    echo   %ESC%[38;5;244mCheck the path and try again.%ESC%[0m
+    echo.
+    goto vault_add_pdf
+)
+:: Append this quoted path to the running command
+set "vault_cmd=%vault_cmd% "%pdf%""
+set /a pdf_count+=1
+echo   %ESC%[38;5;82m[OK]%ESC%[0m Paper %pdf_count% added.
+echo.
+goto vault_add_pdf
+
+:vault_run
+if %pdf_count% LSS 2 (
+    echo.
+    echo   %ESC%[38;5;196m[ERROR] Need at least 2 PDFs to use Vault mode!%ESC%[0m
     echo.
     pause
     goto menu
 )
-python main.py vault %pdfs%
+echo.
+echo   %ESC%[38;5;45mStarting Vault with %pdf_count% papers...%ESC%[0m
+echo.
+%vault_cmd%
 pause
 goto menu
 
