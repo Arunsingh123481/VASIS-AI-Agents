@@ -95,32 +95,48 @@ echo.
 echo   Load 2+ PDFs into one session. Ask cross-paper questions
 echo   like "Do these papers contradict each other on accuracy?"
 echo.
-echo   %ESC%[38;5;244mEnter ONE PDF path per line. Type DONE when finished.%ESC%[0m
-echo   %ESC%[38;5;244mPaths with spaces are handled automatically.%ESC%[0m
+echo   %ESC%[38;5;244mEnter ONE PDF path per line. Type DONE when finished (max 6).%ESC%[0m
+echo   %ESC%[38;5;244mDo NOT add quotes - paths with spaces work automatically.%ESC%[0m
 echo.
-set "vault_cmd=python main.py vault"
 set "pdf_count=0"
+set "pdf1="
+set "pdf2="
+set "pdf3="
+set "pdf4="
+set "pdf5="
+set "pdf6="
 
 :vault_add_pdf
 set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mPDF path (or DONE to start):%ESC%[0m "
-:: Strip surrounding quotes the user may have added
+:: Strip any surrounding quotes the user may have typed
 set "pdf=%pdf:"=%"
-:: Check if user is finished
-if /i "%pdf%"=="done" goto vault_run
-if /i "%pdf%"=="DONE" goto vault_run
-:: Ignore blank input
+:: Blank input - ignore and re-prompt
 if "%pdf%"=="" goto vault_add_pdf
-:: Validate the file exists
-if not exist "%pdf%" (
+:: Done - launch vault
+if /i "%pdf%"=="done" goto vault_run
+:: Already at max papers
+if %pdf_count% GEQ 6 (
     echo.
-    echo   %ESC%[38;5;196m[ERROR] File not found: %pdf%%ESC%[0m
-    echo   %ESC%[38;5;244mCheck the path and try again.%ESC%[0m
+    echo   %ESC%[38;5;196m[ERROR] Maximum 6 PDFs supported. Type DONE to start.%ESC%[0m
     echo.
     goto vault_add_pdf
 )
-:: Append this quoted path to the running command
-set "vault_cmd=%vault_cmd% "%pdf%""
+:: Validate file exists
+if not exist "%pdf%" (
+    echo.
+    echo   %ESC%[38;5;196m[ERROR] File not found: %pdf%%ESC%[0m
+    echo   %ESC%[38;5;244mCheck the path and try again (no quotes needed).%ESC%[0m
+    echo.
+    goto vault_add_pdf
+)
+:: Store in numbered variable
 set /a pdf_count+=1
+if %pdf_count%==1 set "pdf1=%pdf%"
+if %pdf_count%==2 set "pdf2=%pdf%"
+if %pdf_count%==3 set "pdf3=%pdf%"
+if %pdf_count%==4 set "pdf4=%pdf%"
+if %pdf_count%==5 set "pdf5=%pdf%"
+if %pdf_count%==6 set "pdf6=%pdf%"
 echo   %ESC%[38;5;82m[OK]%ESC%[0m Paper %pdf_count% added.
 echo.
 goto vault_add_pdf
@@ -134,11 +150,17 @@ if %pdf_count% LSS 2 (
     goto menu
 )
 echo.
-echo   %ESC%[38;5;45mStarting Vault with %pdf_count% papers...%ESC%[0m
+echo   %ESC%[38;5;45mStarting Vault with %pdf_count% paper(s)...%ESC%[0m
 echo.
-%vault_cmd%
+if %pdf_count%==2 python main.py vault "%pdf1%" "%pdf2%"
+if %pdf_count%==3 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%"
+if %pdf_count%==4 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%"
+if %pdf_count%==5 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%"
+if %pdf_count%==6 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%" "%pdf6%"
 pause
 goto menu
+
+
 
 :list_docs
 cls
