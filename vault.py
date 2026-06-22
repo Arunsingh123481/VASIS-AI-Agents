@@ -81,7 +81,10 @@ class VaultSession:
         for label, rag in self.papers.items():
             try:
                 results[label] = rag.query(
-                    question, show_provenance=False, save_result=False
+                    question,
+                    show_provenance=False,
+                    save_result=False,
+                    forced_query_type="factual",  # bypass Agent12 / deep_research web search
                 )
             except Exception as e:
                 results[label] = {"answer": f"(error querying {label}: {e})",
