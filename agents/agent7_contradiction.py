@@ -38,14 +38,23 @@ def detect(atom_ids: list[int], triple_store: TripleStore, narrative: str) -> di
 
     # Step 3: LLM reasoning audit for logical/numerical discrepancies
     if narrative:
-        prompt = f"""Find contradictions in this text.
+        prompt = f"""Analyze this text for logical contradictions.
+
+STRICT RULES:
+1. A contradiction ONLY exists when two statements assert logically incompatible facts about the SAME subject.
+2. Statements about completely DIFFERENT subjects, domains, or topics are NOT contradictions — they are simply discussing different things. Do NOT flag them.
+3. Statements that use similar mathematical or statistical language (e.g. covariance, probability) but apply to different domains (brain imaging vs. NLP) are NOT contradictions.
+4. Only flag a contradiction if a competent scientist reading both statements would say "these two claims directly conflict with each other".
+5. Be conservative — if uncertain, do NOT flag.
+
 Return JSON:
 {{
   "contradictions_found": true or false,
   "contradiction_details": [
-    {{"claim_a":"...","claim_b":"...",
-      "type":"numerical|factual|logical",
-      "severity":"high|medium|low"}}
+    {{"claim_a": "...", "claim_b": "...",
+      "subject": "the shared subject both claims are about",
+      "type": "numerical|factual|logical",
+      "severity": "high|medium|low"}}
   ],
   "consistency_score": 0.0 to 1.0
 }}

@@ -231,27 +231,52 @@ Return strictly a JSON array of objects with:
             return []
 
     def detect_debates(self, rag_instances: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Detects debates and conflicting results across multiple papers."""
+        """Detects debates and conflicting results across multiple papers.
+
+        Queries each paper with forced_query_type='factual' to prevent the
+        routing engine from classifying the summary query as 'deep_research',
+        which would trigger Agent 12 (web search) and add 60+ seconds of
+        unnecessary latency per paper.
+        """
         paper_summaries = {}
         for title, rag in rag_instances.items():
             query = "What are the main experimental results, methodology choices, and core conclusions of this paper?"
-            result = rag.query(query, show_provenance=False, save_result=False)
+            result = rag.query(
+                query,
+                show_provenance=False,
+                save_result=False,
+                forced_query_type="factual",   # bypass deep_research / Agent12
+            )
             paper_summaries[title] = result.get("narrative", "")
-            
+
         summaries_json = json.dumps(paper_summaries, indent=2)
-        
+
+        # Build a compact list of loaded paper titles so the LLM knows exactly
+        # which papers exist and cannot hallucinate others from its weights.
+        loaded_titles = list(rag_instances.keys())
+
         prompt = f"""You are a peer reviewer. I am providing the core methodologies and conclusions of several papers.
 Analyze them together to find Disagreements, Conflicting Results, or Unresolved Debates.
 For example, Paper A says method X is fast, but Paper B says method X scales poorly.
+
+STRICT RULES:
+1. You MUST only reference papers from this exact list: {loaded_titles}
+2. Do NOT hallucinate or invent external papers, third-party works, or authors not listed above.
+3. A debate ONLY exists if both papers directly address the same topic and reach conflicting conclusions.
+4. If the papers cover completely different domains or subjects (e.g. one is about brain imaging and another is about NLP architectures), return an empty list [].
+5. Do NOT flag statements from different domains as logical contradictions — they are simply unrelated.
+6. "side_a" and "side_b" MUST each name one of the loaded papers from the list above.
 
 Paper Summaries:
 {summaries_json}
 
 Return strictly a JSON array of objects with:
-- "debate_topic": A short, specific, descriptive title for the debate (e.g. "PVA hydrogels in wound healing — efficacy vs degradation risk"). NEVER use a generic question like "What is the debate about?". Make it descriptive and informative.
-- "side_a": Position and paper name
-- "side_b": Conflicting position and paper name
-- "open_issue": What remains unresolved
+- "debate_topic": A short, specific, descriptive title for the debate (e.g. "Transformer vs RNN for machine translation throughput"). NEVER use a generic title like "What is the debate about?".
+- "side_a": Position taken and exact paper name (must be in the loaded list)
+- "side_b": Conflicting position and exact paper name (must be in the loaded list)
+- "open_issue": What specific technical question remains unresolved
+
+If there are no genuine debates between the loaded papers, return an empty JSON array: []
 """
         response = ask_llm(prompt, expect_json=True)
         try:

@@ -716,7 +716,14 @@ Return JSON:
                         "contribution", "contributions", "weakness", "weaknesses", "strength", "strengths",
                         "conclusion", "conclusions", "introduction", "method", "methodology", "result",
                         "results", "references", "bibliography", "citation", "citations", "author", "authors",
-                        "work", "novelty", "limitation", "limitations", "implications"
+                        "work", "novelty", "limitation", "limitations", "implications",
+                        # Cross-paper / vault query terms — these are meta-level and never appear
+                        # verbatim inside single paper text, so matching them causes false BM25
+                        # fallback loops.
+                        "papers", "documents", "articles", "both papers", "all papers", "these papers",
+                        "paper1", "paper2", "paper3", "document1", "document2",
+                        "methodology1", "methodology2", "contradict", "contradiction", "agree",
+                        "disagree", "compare", "comparison", "versus", "consistent", "inconsistent"
                     }
                     entities = [
                         e.lower().strip() for e in routed["key_entities"] 
@@ -920,7 +927,8 @@ Return JSON:
                     f"IMPORTANT: The following aspects/questions could NOT be found or supported by the document context: {clean_failed}.\n"
                     f"Instructions:\n"
                     f"1. Answer the parts of the question that are supported by the context. Be extremely precise and include all relevant equations, variables, numeric values, and exact technical terminology.\n"
-                    f"2. For the parts that are NOT found, explicitly state in your answer that the document does not contain this information. Do not invent or fabricate facts.\n\n"
+                    f"2. For the parts that are NOT found, explicitly state in your answer that the document does not contain this information. Do not invent or fabricate facts.\n"
+                    f"3. Do NOT generate additional questions, hypothetical Q&A pairs, or extra question-answer blocks beyond what the user asked. Write only a direct answer to the single question above.\n\n"
                     f"Answer:"
                 )
             else:
@@ -930,7 +938,8 @@ Return JSON:
                     f"Context:\n{final_narrative}\n\n"
                     f"Instructions:\n"
                     f"1. Be extremely precise. Include all relevant mathematical variables, equations, numeric values, and exact technical terminology from the context.\n"
-                    f"2. Keep the answer direct and factual.\n\n"
+                    f"2. Keep the answer direct and factual.\n"
+                    f"3. Do NOT generate additional questions, hypothetical Q&A pairs, or extra question-answer blocks beyond what the user asked. Write only a direct answer to the single question above.\n\n"
                     f"Answer:"
                 )
             answer = llm_generate(
