@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -14,45 +14,51 @@ cls
 
 :menu
 cls
-echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
-echo [38;5;208m│                 [1mVASIS AI - SYSTEM CONTROL PANEL[0m[38;5;208m              │[0m
-echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │                 VASIS AI - SYSTEM CONTROL PANEL              │
+echo └──────────────────────────────────────────────────────────────┘
 echo.
-echo       [38;5;208m██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗[0m
-echo       [38;5;208m██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║[0m
-echo       [38;5;208m██║   ██║███████║███████╗██║███████╗    ███████║██║[0m
-echo       [38;5;208m╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║[0m
-echo       [38;5;208m ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║[0m
-echo       [38;5;208m  ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝[0m
+echo       ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗
+echo       ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║
+echo       ██║   ██║███████║███████╗██║███████╗    ███████║██║
+echo       ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║
+echo        ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║
+echo         ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝
 echo.
-echo   [38;5;45m[1][0m [1mLaunch Interactive CLI RAG Chat[0m  [38;5;244m(python main.py chat)[0m
-echo   [38;5;45m[2][0m [1mIndex a New PDF Document[0m        [38;5;244m(python main.py index)[0m
-echo   [38;5;45m[3][0m [1mList Indexed Documents in Local Vault[0m
-echo   [38;5;45m[4][0m [1mCheck Ollama Local Server Status[0m
-echo   [38;5;45m[5][0m [38;5;196mExit[0m
+echo   [1] Launch Interactive CLI RAG Chat     (single PDF)
+echo   [2] Index a New PDF Document            (build causal graph)
+echo   [3] Vault Multi-Paper Chat              (cross-paper contradictions)
+echo   [4] List Indexed Documents in Local Vault
+echo   [5] Check Ollama Local Server Status
+echo   [6] Run Tests                           (pytest, 32 tests)
+echo   [7] Launch API Server                   (FastAPI on port 8000)
+echo   [8] Exit
 echo.
-echo [38;5;208m────────────────────────────────────────────────────────────────[0m
+echo ────────────────────────────────────────────────────────────────
 echo.
-set /p choice="  [38;5;208m╰──▶[0m [1mEnter your selection (1-5):[0m "
+set /p choice="  Enter your selection (1-8): "
 
 if "%choice%"=="1" goto start_chat
 if "%choice%"=="2" goto index_doc
-if "%choice%"=="3" goto list_docs
-if "%choice%"=="4" goto check_ollama
-if "%choice%"=="5" goto exit
+if "%choice%"=="3" goto vault_chat
+if "%choice%"=="4" goto list_docs
+if "%choice%"=="5" goto check_ollama
+if "%choice%"=="6" goto run_tests
+if "%choice%"=="7" goto launch_api
+if "%choice%"=="8" goto exit
 goto menu
 
 :start_chat
 cls
-echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
-echo [38;5;208m│               LAUNCHING INTERACTIVE CLI CHAT                 │[0m
-echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │               LAUNCHING INTERACTIVE CLI CHAT                 │
+echo └──────────────────────────────────────────────────────────────┘
 echo.
-set /p pdf="  [38;5;208m╰──▶[0m [1mEnter absolute or relative path of PDF:[0m "
+set /p pdf="  Enter absolute or relative path of PDF: "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
-    echo   [38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.[0m
+    echo   [ERROR] File "%pdf%" does not exist! Please check the path.
     echo.
     pause
     goto menu
@@ -63,15 +69,15 @@ goto menu
 
 :index_doc
 cls
-echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
-echo [38;5;208m│          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)          │[0m
-echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)          │
+echo └──────────────────────────────────────────────────────────────┘
 echo.
-set /p pdf="  [38;5;208m╰──▶[0m [1mEnter the path of the PDF to index:[0m "
+set /p pdf="  Enter the path of the PDF to index: "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
-    echo   [38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.[0m
+    echo   [ERROR] File "%pdf%" does not exist! Please check the path.
     echo.
     pause
     goto menu
@@ -80,11 +86,35 @@ python main.py index "%pdf%" --show-tree
 pause
 goto menu
 
+:vault_chat
+cls
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │         VAULT MODE - MULTI-PAPER CROSS-DOCUMENT CHAT        │
+echo └──────────────────────────────────────────────────────────────┘
+echo.
+echo   Load 2+ PDFs into one session. Ask cross-paper questions
+echo   like "Do these papers contradict each other on accuracy?"
+echo.
+echo   Enter PDF paths separated by spaces:
+echo.
+set /p pdfs="  > "
+set "pdfs=%pdfs:"=%"
+if "%pdfs%"=="" (
+    echo.
+    echo   [ERROR] No PDFs provided!
+    echo.
+    pause
+    goto menu
+)
+python main.py vault %pdfs%
+pause
+goto menu
+
 :list_docs
 cls
-echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
-echo [38;5;208m│            INDEXED DOCUMENTS IN LOCAL CACHE VAULT            │[0m
-echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │            INDEXED DOCUMENTS IN LOCAL CACHE VAULT            │
+echo └──────────────────────────────────────────────────────────────┘
 echo.
 python main.py list
 echo.
@@ -93,23 +123,49 @@ goto menu
 
 :check_ollama
 cls
-echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
-echo [38;5;208m│              OLLAMA LOCAL SERVER SERVICE CHECK               │[0m
-echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │              OLLAMA LOCAL SERVER SERVICE CHECK               │
+echo └──────────────────────────────────────────────────────────────┘
 echo.
 echo   Checking connection to Ollama at http://127.0.0.1:11435...
 echo.
 powershell -Command "try { $r = Invoke-RestMethod -Uri http://127.0.0.1:11435/api/tags; echo '  [STATUS] local Ollama service is ACTIVE'; echo ''; echo '  Downloaded Models:'; foreach($m in $r.models) { echo ('    - ' + $m.name + ' (' + [math]::round($m.size / 1GB, 2) + ' GB)') } } catch { echo '  [STATUS] Ollama unreachable on port 11435!'; echo '  Please run: ollama serve' }"
 echo.
-echo [38;5;208m────────────────────────────────────────────────────────────────[0m
+echo ────────────────────────────────────────────────────────────────
+pause
+goto menu
+
+:run_tests
+cls
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │                    RUNNING TEST SUITE                        │
+echo └──────────────────────────────────────────────────────────────┘
+echo.
+python -m pytest tests/ -v
+echo.
+echo ────────────────────────────────────────────────────────────────
+pause
+goto menu
+
+:launch_api
+cls
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │              LAUNCHING FASTAPI SERVER (PORT 8000)            │
+echo └──────────────────────────────────────────────────────────────┘
+echo.
+echo   API will be available at http://127.0.0.1:8000
+echo   Docs at http://127.0.0.1:8000/docs
+echo   Press Ctrl+C to stop the server.
+echo.
+python api.py
 pause
 goto menu
 
 :exit
 cls
-echo [38;5;208m┌──────────────────────────────────────────────────────────────┐[0m
-echo [38;5;208m│               EXITING CONTROL PANEL... GOODBYE!              │[0m
-echo [38;5;208m└──────────────────────────────────────────────────────────────┘[0m
+echo ┌──────────────────────────────────────────────────────────────┐
+echo │               EXITING CONTROL PANEL... GOODBYE!              │
+echo └──────────────────────────────────────────────────────────────┘
 echo.
 timeout /t 2 >nul
 exit
