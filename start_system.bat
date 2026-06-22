@@ -129,7 +129,7 @@ if %pdf_count% GEQ 6 (
 if not exist "%pdf%" (
     echo.
     echo   %ESC%[38;5;196m[ERROR] File not found: "%pdf%"%ESC%[0m
-    echo   %ESC%[38;5;244mCheck the path and try again (no quotes needed).%ESC%[0m
+    echo   %ESC%[38;5;244mCheck the path and try again - no quotes needed.%ESC%[0m
     echo.
     goto vault_add_pdf
 )
