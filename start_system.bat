@@ -2,6 +2,9 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
+:: Generate ESC character for ANSI color codes
+for /F %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
+
 :: Automatically activate virtual environment if it exists
 if exist ".venv\Scripts\activate.bat" (
     call ".venv\Scripts\activate.bat"
@@ -14,29 +17,26 @@ cls
 
 :menu
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │                 VASIS AI - SYSTEM CONTROL PANEL              │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-echo       ██╗   ██╗ █████╗ ███████╗██╗███████╗     █████╗ ██╗
-echo       ██║   ██║██╔══██╗██╔════╝██║██╔════╝    ██╔══██╗██║
-echo       ██║   ██║███████║███████╗██║███████╗    ███████║██║
-echo       ╚██╗ ██╔╝██╔══██║╚════██║██║╚════██║    ██╔══██║██║
-echo        ╚████╔╝ ██║  ██║███████║██║███████║    ██║  ██║██║
-echo         ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝    ╚═╝  ╚═╝╚═╝
+echo       %ESC%[38;5;208m%ESC%[1m V  A  S  I  S      A  I%ESC%[0m
 echo.
-echo   [1] Launch Interactive CLI RAG Chat     (single PDF)
-echo   [2] Index a New PDF Document            (build causal graph)
-echo   [3] Vault Multi-Paper Chat              (cross-paper contradictions)
-echo   [4] List Indexed Documents in Local Vault
-echo   [5] Check Ollama Local Server Status
-echo   [6] Run Tests                           (pytest, 32 tests)
-echo   [7] Launch API Server                   (FastAPI on port 8000)
-echo   [8] Exit
+echo       %ESC%[38;5;45m14-Agent Consensus Engine - Control Panel%ESC%[0m
 echo.
-echo ────────────────────────────────────────────────────────────────
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-set /p choice="  Enter your selection (1-8): "
+echo   %ESC%[38;5;45m[1]%ESC%[0m %ESC%[1mLaunch Interactive CLI RAG Chat%ESC%[0m     %ESC%[38;5;244m(single PDF)%ESC%[0m
+echo   %ESC%[38;5;45m[2]%ESC%[0m %ESC%[1mIndex a New PDF Document%ESC%[0m            %ESC%[38;5;244m(build causal graph)%ESC%[0m
+echo   %ESC%[38;5;45m[3]%ESC%[0m %ESC%[1mVault Multi-Paper Chat%ESC%[0m              %ESC%[38;5;244m(cross-paper contradictions)%ESC%[0m
+echo   %ESC%[38;5;45m[4]%ESC%[0m %ESC%[1mList Indexed Documents in Local Vault%ESC%[0m
+echo   %ESC%[38;5;45m[5]%ESC%[0m %ESC%[1mCheck Ollama Local Server Status%ESC%[0m
+echo   %ESC%[38;5;45m[6]%ESC%[0m %ESC%[1mRun Tests%ESC%[0m                           %ESC%[38;5;244m(pytest, 32 tests)%ESC%[0m
+echo   %ESC%[38;5;45m[7]%ESC%[0m %ESC%[1mLaunch API Server%ESC%[0m                   %ESC%[38;5;244m(FastAPI on port 8000)%ESC%[0m
+echo   %ESC%[38;5;45m[8]%ESC%[0m %ESC%[38;5;196mExit%ESC%[0m
+echo.
+echo %ESC%[38;5;208m----------------------------------------------------------------%ESC%[0m
+echo.
+set /p choice="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mEnter your selection (1-8):%ESC%[0m "
 
 if "%choice%"=="1" goto start_chat
 if "%choice%"=="2" goto index_doc
@@ -50,15 +50,15 @@ goto menu
 
 :start_chat
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │               LAUNCHING INTERACTIVE CLI CHAT                 │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m             LAUNCHING INTERACTIVE CLI CHAT                     %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-set /p pdf="  Enter absolute or relative path of PDF: "
+set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mEnter absolute or relative path of PDF:%ESC%[0m "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
-    echo   [ERROR] File "%pdf%" does not exist! Please check the path.
+    echo   %ESC%[38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.%ESC%[0m
     echo.
     pause
     goto menu
@@ -69,15 +69,15 @@ goto menu
 
 :index_doc
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)          │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m          INDEXING NEW DOCUMENT (BUILD CAUSAL GRAPH)            %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-set /p pdf="  Enter the path of the PDF to index: "
+set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mEnter the path of the PDF to index:%ESC%[0m "
 set "pdf=%pdf:"=%"
 if not exist "%pdf%" (
     echo.
-    echo   [ERROR] File "%pdf%" does not exist! Please check the path.
+    echo   %ESC%[38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.%ESC%[0m
     echo.
     pause
     goto menu
@@ -88,20 +88,20 @@ goto menu
 
 :vault_chat
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │         VAULT MODE - MULTI-PAPER CROSS-DOCUMENT CHAT        │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m       VAULT MODE - MULTI-PAPER CROSS-DOCUMENT CHAT            %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
 echo   Load 2+ PDFs into one session. Ask cross-paper questions
 echo   like "Do these papers contradict each other on accuracy?"
 echo.
 echo   Enter PDF paths separated by spaces:
 echo.
-set /p pdfs="  > "
+set /p pdfs="  %ESC%[38;5;208m^>%ESC%[0m "
 set "pdfs=%pdfs:"=%"
 if "%pdfs%"=="" (
     echo.
-    echo   [ERROR] No PDFs provided!
+    echo   %ESC%[38;5;196m[ERROR] No PDFs provided!%ESC%[0m
     echo.
     pause
     goto menu
@@ -112,9 +112,9 @@ goto menu
 
 :list_docs
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │            INDEXED DOCUMENTS IN LOCAL CACHE VAULT            │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m            INDEXED DOCUMENTS IN LOCAL CACHE VAULT              %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
 python main.py list
 echo.
@@ -123,35 +123,35 @@ goto menu
 
 :check_ollama
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │              OLLAMA LOCAL SERVER SERVICE CHECK               │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m              OLLAMA LOCAL SERVER SERVICE CHECK                 %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
 echo   Checking connection to Ollama at http://127.0.0.1:11435...
 echo.
 powershell -Command "try { $r = Invoke-RestMethod -Uri http://127.0.0.1:11435/api/tags; echo '  [STATUS] local Ollama service is ACTIVE'; echo ''; echo '  Downloaded Models:'; foreach($m in $r.models) { echo ('    - ' + $m.name + ' (' + [math]::round($m.size / 1GB, 2) + ' GB)') } } catch { echo '  [STATUS] Ollama unreachable on port 11435!'; echo '  Please run: ollama serve' }"
 echo.
-echo ────────────────────────────────────────────────────────────────
+echo %ESC%[38;5;208m----------------------------------------------------------------%ESC%[0m
 pause
 goto menu
 
 :run_tests
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │                    RUNNING TEST SUITE                        │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m                    RUNNING TEST SUITE                          %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
 python -m pytest tests/ -v
 echo.
-echo ────────────────────────────────────────────────────────────────
+echo %ESC%[38;5;208m----------------------------------------------------------------%ESC%[0m
 pause
 goto menu
 
 :launch_api
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │              LAUNCHING FASTAPI SERVER (PORT 8000)            │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m              LAUNCHING FASTAPI SERVER (PORT 8000)              %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
 echo   API will be available at http://127.0.0.1:8000
 echo   Docs at http://127.0.0.1:8000/docs
@@ -163,9 +163,9 @@ goto menu
 
 :exit
 cls
-echo ┌──────────────────────────────────────────────────────────────┐
-echo │               EXITING CONTROL PANEL... GOODBYE!              │
-echo └──────────────────────────────────────────────────────────────┘
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m               EXITING CONTROL PANEL... GOODBYE!               %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
 timeout /t 2 >nul
 exit
