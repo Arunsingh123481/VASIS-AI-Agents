@@ -231,7 +231,8 @@ def _get_embed_model():
     """Lazy-load the embedding model (shared singleton)."""
     global _embed_model
     if _embed_model is None:
-        import os, warnings
+        import os
+        import warnings
         warnings.filterwarnings("ignore")
         os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
         from sentence_transformers import SentenceTransformer

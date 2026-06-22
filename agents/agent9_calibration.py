@@ -42,6 +42,19 @@ def calibrate(
     base = float(validation.get("confidence_score", 0.5))
     w    = WEIGHTS.get(intent, WEIGHTS["unknown"])
 
+    # Strict floor for out-of-scope or rejected validations
+    if base == 0.0 or validation.get("verdict") == "ungrounded" or validation.get("recommendation") == "reject":
+        print_msg("[Agent9] Out-of-scope or ungrounded validation detected. Forcing score to 0.0 and trust to low.")
+        return {
+            "base_score":       0.0,
+            "calibrated_score": 0.0,
+            "trust_level":      "low",
+            "gap_penalty":      0.0,
+            "conflict_penalty": 0.0,
+            "temporal_bonus":   0.0,
+            "requery_penalty":  0.0
+        }
+
     # Gap Penalty — uses per-intent cap so causal/procedural queries aren't crushed
     gap_cap = w.get("gap_cap", 0.25)
     gap_penalty = min(gap_cap, float(expansion.get("gap_count", 0)) * w["gap"])

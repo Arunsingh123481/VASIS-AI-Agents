@@ -11,7 +11,7 @@ This eliminates boundary blindness without a fixed, arbitrary segment count.
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
-from console_helper import print_msg, tqdm, print_panel
+from console_helper import print_msg
 
 
 from typing import List, Dict, Optional

@@ -6,7 +6,7 @@ All loaders normalise output to a list of page dicts with: page_num, text, char_
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
-from console_helper import print_msg, tqdm, print_panel
+from console_helper import print_msg, tqdm
 
 
 import fitz  # pymupdf

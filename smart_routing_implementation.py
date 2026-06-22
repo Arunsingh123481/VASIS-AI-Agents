@@ -160,8 +160,7 @@ Key changes:
 
 import time
 from agent_routing_rules import (
-    AGENT10_REVIEW_RULES,
-    ROUTING_RULES
+    AGENT10_REVIEW_RULES
 )
 
 # Import all agents
@@ -176,10 +175,6 @@ from agents import agent8_temporal   as a8
 from agents import agent9_calibration as a9
 from agents import agent11_synthesis  as a11
 from agents import agent12_websearch  as a12
-from agents.agent1_router import (
-    get_agents_for_query,
-    detect_query_type
-)
 from agents.agent6_validation import RequerySignal
 
 
@@ -504,8 +499,8 @@ def execute_smart(question: str,
             )
             if not review["pass"]:
                 print(
-                    f"[Agent10] Decomposer failed "
-                    f"check — using original query"
+                    "[Agent10] Decomposer failed "
+                    "check — using original query"
                 )
                 sub_queries = [
                     routed["rewritten_query"]

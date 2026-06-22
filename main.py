@@ -363,6 +363,118 @@ def chat(pdf_path, model, top_k, passes):
 
 
 @cli.command()
+@click.argument("pdf_paths", nargs=-1, required=True)
+@click.option("--model", default=DEFAULT_MODEL, help="Ollama model to use")
+@click.option("--force-reindex", is_flag=True, help="Force re-indexing even if cache exists")
+def vault(pdf_paths, model, force_reindex):
+    """Load multiple PDFs into one session and ask cross-paper questions,
+    including real contradiction/disagreement checks across them.
+
+    Example: python main.py vault paper1.pdf paper2.pdf paper3.pdf
+    """
+    for p in pdf_paths:
+        _check_pdf(p)
+    _print_banner()
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from vault import VaultSession, is_comparison_question
+
+    session = VaultSession(model=model)
+    for path in pdf_paths:
+        with console.status(f"[bold cyan]Swarm active — Loading {os.path.basename(path)}...[/bold cyan]", spinner="dots"):
+            try:
+                label = session.load(path, force_reindex=force_reindex)
+                console.print(f"[green]✓ Loaded[/green] [cyan]{label}[/cyan]")
+            except Exception as e:
+                console.print(f"[red]✗ Failed to load {path}: {e}[/red]")
+
+    if len(session.papers) < 2:
+        console.print("[yellow]Warning: fewer than 2 papers loaded. Comparison/contradiction questions need at least 2.[/yellow]")
+
+    labels_str = ", ".join(session.papers.keys())
+    console.print(Panel(
+        f"[bold orange1]Papers loaded:[/bold orange1] [cyan]{labels_str}[/cyan]\n\n"
+        "Ask anything. Questions that mention comparison/contradiction-style language\n"
+        "(e.g. 'contradict', 'disagree', 'compare', 'consistent') are routed through a\n"
+        "real cross-document check; everything else is answered by each paper individually.\n"
+        "Commands: [bold cyan]list[/bold cyan] (show loaded papers) | [bold cyan]stats[/bold cyan] | [bold cyan]quit[/bold cyan] (exit)",
+        title="[bold green]● Vault Chat Active[/bold green]",
+        border_style="green",
+        box=box.ROUNDED
+    ))
+
+    while True:
+        try:
+            question = Prompt.ask("\n[bold orange1]╭── user[/bold orange1]\n[bold orange1]╰──>[/bold orange1]")
+
+            if not question.strip():
+                continue
+            if question.strip().lower() in ("quit", "exit", "q"):
+                console.print("[yellow]Goodbye![/yellow]")
+                break
+            if question.strip().lower() == "list":
+                for label in session.papers:
+                    console.print(f"  • [cyan]{label}[/cyan]  (doc_id: {session.papers[label].doc_id})")
+                continue
+            if question.strip().lower() == "stats":
+                for s in session.stats():
+                    console.print(f"  [cyan]{s['label']}[/cyan]: {s['total_atoms']} atoms, {s['total_triples']} triples, {s['tree_nodes']} sections")
+                continue
+
+            if is_comparison_question(question):
+                with console.status("[bold cyan]Swarm active — querying every paper + running cross-document audit...[/bold cyan]", spinner="arc"):
+                    result = session.compare(question)
+
+                if "error" in result:
+                    console.print(f"[red]{result['error']}[/red]")
+                    continue
+
+                console.print(Panel(
+                    "\n\n".join(f"[bold cyan]{label}:[/bold cyan] {ans}" for label, ans in result["per_paper_answers"].items()),
+                    title="[bold]Per-paper answers[/bold]", border_style="cyan", expand=False
+                ))
+
+                if result["structural_conflict_found"]:
+                    console.print("\n[bold red]⚠ STRUCTURAL CONTRADICTION DETECTED[/bold red]")
+                    for c in result["cross_doc_conflicts"]:
+                        console.print(f"  [yellow]{c['subject']} — {c['relation']}[/yellow]")
+                        for doc, obj in c["per_document"].items():
+                            console.print(f"    [{doc}] → {obj}")
+                    for c in result["triple_conflicts"]:
+                        console.print(f"  [yellow]{c['subject']} — {c['relation']}[/yellow]: conflicting values {c['conflicting_objects']}")
+                else:
+                    console.print(f"\n[green]No structural (triple-level) conflict found.[/green] Consistency score: {result['consistency_score']:.2f}")
+
+                if result["llm_contradictions"]:
+                    console.print("\n[bold yellow]Soft logical inconsistencies flagged by audit LLM:[/bold yellow]")
+                    for c in result["llm_contradictions"]:
+                        console.print(f"  • {c.get('claim_a', '')}  [dim]vs[/dim]  {c.get('claim_b', '')}  ({c.get('severity', 'low')})")
+
+                if result["narrative_debates"]:
+                    console.print("\n[bold magenta]Narrative-level debates across papers:[/bold magenta]")
+                    for d in result["narrative_debates"]:
+                        console.print(f"  [bold]{d.get('debate_topic', 'Untitled')}[/bold]")
+                        console.print(f"    Side A: {d.get('side_a', '')}")
+                        console.print(f"    Side B: {d.get('side_b', '')}")
+                        console.print(f"    Open issue: {d.get('open_issue', '')}")
+            else:
+                with console.status("[bold cyan]Swarm active — querying every loaded paper...[/bold cyan]", spinner="arc"):
+                    results = session.ask_all(question)
+                for label, r in results.items():
+                    console.print(Panel(
+                        Markdown(r.get("answer", "")),
+                        title=f"[bold green]{label}[/bold green]",
+                        border_style="green", box=box.ROUNDED, expand=False
+                    ))
+
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted. Goodbye![/yellow]")
+            break
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
+
+
+@cli.command()
 @click.argument("pdf_path")
 def history(pdf_path):
     """Show past query history for a document."""

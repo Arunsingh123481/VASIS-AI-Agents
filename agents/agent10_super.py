@@ -732,8 +732,23 @@ Return JSON:
                                 matched_any = True
                                 break
                         if not matched_any:
-                            print_msg(f"[Agent10] None of the key entities {entities} found in the loaded context. Query is out-of-scope.")
-                            anchors = []
+                            print_msg(f"[Agent10] Key entities {entities} not found in navigator sections. Invoking BM25 fallback retrieval...")
+                            try:
+                                fallback_anchors = a4.retrieve(
+                                    sq, [n["node_id"] for n in self.tree], self.tree,
+                                    self.atom_store, self.bm25_index,
+                                    self.triple_store, warm_atoms,
+                                    routed=routed
+                                )
+                                if fallback_anchors:
+                                    print_msg(f"[Agent10] BM25 fallback successfully found {len(fallback_anchors)} anchor atoms.")
+                                    anchors = fallback_anchors
+                                else:
+                                    print_msg(f"[Agent10] BM25 fallback found nothing. Query is out-of-scope.")
+                                    anchors = []
+                            except Exception as e:
+                                print_msg(f"[Agent10] BM25 fallback error: {e}")
+                                anchors = []
                 # Record will be done once outside the loop to avoid duplicate entries
             else:
                 any_retrieval_run = True
@@ -903,14 +918,20 @@ Return JSON:
                     f"Question: {question}\n"
                     f"Context:\n{final_narrative}\n\n"
                     f"IMPORTANT: The following aspects/questions could NOT be found or supported by the document context: {clean_failed}.\n"
-                    f"Task: Answer the parts of the question that are supported by the context. For the parts that are NOT found, explicitly state in your answer that the document does not contain this information. Do not invent or fabricate facts.\n\n"
+                    f"Instructions:\n"
+                    f"1. Answer the parts of the question that are supported by the context. Be extremely precise and include all relevant equations, variables, numeric values, and exact technical terminology.\n"
+                    f"2. For the parts that are NOT found, explicitly state in your answer that the document does not contain this information. Do not invent or fabricate facts.\n\n"
                     f"Answer:"
                 )
             else:
                 answer_prompt = (
                     f"Answer the user's question accurately using ONLY the provided document context.\n"
                     f"Question: {question}\n"
-                    f"Context:\n{final_narrative}\n\nAnswer:"
+                    f"Context:\n{final_narrative}\n\n"
+                    f"Instructions:\n"
+                    f"1. Be extremely precise. Include all relevant mathematical variables, equations, numeric values, and exact technical terminology from the context.\n"
+                    f"2. Keep the answer direct and factual.\n\n"
+                    f"Answer:"
                 )
             answer = llm_generate(
                 "answer_generation",
@@ -933,7 +954,8 @@ Return JSON:
             for attempt in range(max_requery + 1):
                 try:
                     validation = a6.validate(
-                        answer, final_narrative, question
+                        answer, final_narrative, question,
+                        entities=routed.get("key_entities", []) if routed else []
                     )
                     validation["requery_count"] = attempt
                     break
@@ -1149,16 +1171,44 @@ Return JSON:
             query_type == "deep_research" and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
         )
 
-        if is_needed("agent12_websearch"):
-            should_search = (
-                is_paper_writing_requested or
-                is_impl_guide_requested
-            )
-            if should_search and a12 is not None:
+        # Pre-parse venue and article type so they are available for web search and paper writing
+        _venue = venue or "IEEE"
+        _article_type = article_type or "research_article"
+        q_lower = question.lower()
+        if not venue:
+            for v in ["neurips", "icml", "iclr", "acm",
+                      "springer", "elsevier", "dsj"]:
+                if v in q_lower:
+                    _venue = v.upper()
+                    break
+        if not article_type:
+            for at in ["review_article", "short_communication",
+                       "systematic_review", "perspective_article",
+                       "technical_note", "case_study",
+                       "letter_to_editor"]:
+                if at.replace("_", " ") in q_lower:
+                    _article_type = at
+                    break
+            if "review" in q_lower and _article_type == "research_article":
+                 _article_type = "review_article"
+
+        should_search = (
+            is_paper_writing_requested or
+            is_impl_guide_requested
+        )
+
+        if is_needed("agent12_websearch") or should_search:
+            if a12 is not None:
                 try:
                     # When paper/guide is requested, search using the topic directly
                     # instead of the gap_desc derived from novel_connections (which may be empty)
-                    if is_paper_writing_requested or is_impl_guide_requested:
+                    if is_paper_writing_requested:
+                        web_result = a12.search_for_paper(
+                            question,
+                            _article_type,
+                            synthesis.get("novel_connections", [])
+                        )
+                    elif is_impl_guide_requested:
                         search_topic = question
                         web_result = a12.search_and_solve(
                             search_topic,
@@ -1176,6 +1226,15 @@ Return JSON:
                             gap_desc,
                             synthesis["novel_connections"]
                         )
+
+                    # Enforce agent12_min_sources = 8 warning log
+                    if web_result and len(web_result.get("sources", [])) < 8:
+                        print_msg(
+                            f"[Agent10] Warning: Agent12 web search returned only "
+                            f"{len(web_result.get('sources', []))} sources, "
+                            f"which is less than the required minimum of 8."
+                        )
+
                     record("agent12_websearch",
                            web_result, "A", 0.85,
                            time.time()-t0)
@@ -1194,36 +1253,66 @@ Return JSON:
         paper_result = None
         # We check is_paper_writing_requested computed during web search step
         if is_paper_writing_requested and a13 is not None:
+
+            # ── OUT-OF-SCOPE HARD GATE ────────────────────────
+            # Reconstruct per-sub-query retrieval stats from data already
+            # collected in the loop above, then block Agent13 if every
+            # sub-query failed context retrieval.
+            _sq_results = []
+            for _sq_idx, _sq in enumerate(sub_queries):
+                _sq_atom_count = len(unique_atom_ids) if _sq_idx == 0 else 0
+                _sq_narrative  = all_narratives[_sq_idx] if _sq_idx < len(all_narratives) else ""
+                _sq_failed     = _sq in failed_sub_queries
+                _sq_results.append({
+                    "query":            _sq,
+                    "atom_count":       _sq_atom_count,
+                    "narrative_length": len(_sq_narrative),
+                    "out_of_scope":     _sq_failed,
+                })
+
+            _successful_retrievals = [
+                sq for sq in _sq_results
+                if sq.get("atom_count", 0) > 0
+                   and sq.get("narrative_length", 0) > 200
+                   and not sq.get("out_of_scope", False)
+            ]
+
+            if len(_successful_retrievals) == 0:
+                print_msg(
+                    "[Agent10] ⚠ Out-of-scope hard gate triggered — "
+                    "Agent13 skipped (0 successful retrievals)."
+                )
+                record("agent13_paper_writer", None,
+                       "S", 0.0, 0.0,
+                       skipped_flag=True, action="out_of_scope_hard_block")
+                return {
+                    "answer": (
+                        "⚠ Cannot generate paper: the loaded document contains no "
+                        "relevant content for this query. All sub-queries failed "
+                        "context retrieval (0 atoms recovered, query flagged "
+                        "out-of-scope).\n\n"
+                        "Please either:\n"
+                        "  1. Load a document relevant to the requested topic, or\n"
+                        "  2. Enable Agent12 web search mode so the paper can be "
+                        "grounded in external sources instead."
+                    ),
+                    "trust": "LOW (0.0)",
+                    "grade": "F",
+                    "skipped_agents": ["agent13_paper_writer"],
+                    "reason": "out_of_scope_hard_block"
+                }
+            # ── END OUT-OF-SCOPE HARD GATE ────────────────────
+
             t0 = time.time()
             print_msg("\n[Agent10] → Dispatching Agent 13 (Paper Writer)...")
             try:
-                # Use venue/article_type passed from chat mode; fall back to query keyword parsing
-                _venue = venue or "IEEE"
-                _article_type = article_type or "research_article"
-                q_lower = question.lower()
-                if not venue:
-                    for v in ["neurips", "icml", "iclr", "acm",
-                              "springer", "elsevier", "dsj"]:
-                        if v in q_lower:
-                            _venue = v.upper()
-                            break
-                if not article_type:
-                    for at in ["review_article", "short_communication",
-                               "systematic_review", "perspective_article",
-                               "technical_note", "case_study",
-                               "letter_to_editor"]:
-                        if at.replace("_", " ") in q_lower:
-                            _article_type = at
-                            break
-                    if "review" in q_lower and _article_type == "research_article":
-                        _article_type = "review_article"
-
                 paper_result = a13.write_paper(
                     topic=question,
                     venue=_venue,
                     article_type=_article_type,
                     narrative=final_narrative,
                     atom_ids=unique_atom_ids,
+                    atoms=self.atom_store.get_many(unique_atom_ids),
                     web_evidence=web_result or {"sources": []},
                     novel_connections=synthesis.get(
                         "novel_connections", []

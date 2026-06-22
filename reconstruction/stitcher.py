@@ -6,7 +6,7 @@ Reconstructed Narrative Block ready for LLM consumption.
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
-from console_helper import print_msg, tqdm, print_panel
+from console_helper import print_msg
 
 
 from typing import List, Dict, Tuple
@@ -68,7 +68,7 @@ def _print_stitch_summary(ordered_atoms: List[Dict], narrative: str) -> None:
     pages = sorted(set(a["page_num"] for a in ordered_atoms))
     page_range = f"{pages[0]}–{pages[-1]}" if len(pages) > 1 else str(pages[0])
 
-    print_msg(f"[bold green]Reconstructed Narrative Block:[/bold green]")
+    print_msg("[bold green]Reconstructed Narrative Block:[/bold green]")
     print_msg(f"  Atoms used: {len(ordered_atoms)}")
     print_msg(f"  Pages covered: {page_range} ({len(pages)} unique pages)")
     print_msg(f"  Narrative length: {len(narrative)} chars")

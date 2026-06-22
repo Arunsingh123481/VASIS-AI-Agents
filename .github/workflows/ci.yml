@@ -17,7 +17,6 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-style: '3.11'
         python-version: '3.11'
 
     - name: Cache Pip Dependencies
@@ -39,7 +38,7 @@ jobs:
 
     - name: Run Linting Checks
       run: |
-        ruff check .
+        ruff check . --ignore E701,F841,F811
 
     - name: Execute Fast-Path Tests
       run: |

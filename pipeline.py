@@ -5,17 +5,17 @@ Orchestrates all phases: ingestion, indexing, reasoning, expansion, reconstructi
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
-from console_helper import print_msg, tqdm, print_panel
+from console_helper import print_msg, print_panel
 
 
 import json
 import os
-from typing import Dict, Optional
+from typing import Dict
 
-from ingest.pdf_loader import load_pdf, load_document, get_pdf_metadata
+from ingest.pdf_loader import load_document
 from ingest.atomic_decomposer import decompose_to_atoms, cross_reference_atoms_to_tree
 from ingest.tree_builder import build_tree, print_tree
-from reconstruction.stitcher import stitch, get_provenance
+from reconstruction.stitcher import get_provenance
 from storage.store import get_doc_id, save_index, load_index, index_exists, save_query_result
 from config import AGENT_MODEL, REASONING_MODEL
 
@@ -104,7 +104,7 @@ class PageIndexREMSE:
         save_index(self.doc_id, self.tree_nodes, self.atoms, self.triples)
 
         self._ready = True
-        print_msg(f"\n[bold green]Ingestion complete.[/bold green]")
+        print_msg("\n[bold green]Ingestion complete.[/bold green]")
         print_msg(f"  Tree nodes: {len(self.tree_nodes)}")
         print_msg(f"  Atoms: {len(self.atoms)}")
         print_msg(f"  Causal Triples: {len(self.triples)}")
@@ -251,6 +251,6 @@ class PageIndexREMSE:
             "tree_nodes": len(self.tree_nodes),
             "total_atoms": len(self.atoms),
             "total_triples": len(self.triples),
-            "model": f"Qwen & DeepSeek (Ollama)",
+            "model": "Qwen & DeepSeek (Ollama)",
             "ready": self._ready
         }

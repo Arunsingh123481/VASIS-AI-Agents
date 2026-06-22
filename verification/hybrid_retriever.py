@@ -38,7 +38,6 @@ class _BM25:
         N = len(self.docs)
         avgdl = sum(len(d) for d in self.docs) / max(N, 1)
         # IDF for each term (across corpus)
-        from collections import Counter
         df: Dict[str, int] = {}
         for doc in self.docs:
             for term in set(doc):
@@ -74,7 +73,8 @@ def _get_embed_model():
     global _embed_model
     if _embed_model is None:
         from sentence_transformers import SentenceTransformer
-        import os, warnings
+        import os
+        import warnings
         warnings.filterwarnings("ignore")
         os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
         _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -136,7 +136,6 @@ def hybrid_retrieve(
 
     # ── Vector scores ─────────────────────────────────────────────────────
     model = _get_embed_model()
-    import numpy as np
     q_emb = model.encode(claim, convert_to_tensor=False)
     a_embs = model.encode(texts, convert_to_tensor=False, show_progress_bar=False)
     vec_scores = [_cosine(q_emb, e) for e in a_embs]

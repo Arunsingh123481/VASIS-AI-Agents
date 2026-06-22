@@ -83,7 +83,7 @@ Text: {narrative[:2000]}"""
     
     print_msg(f"[Agent7] Audit complete. Triple collisions={len(triple_conflicts)} | Cross-doc conflicts={len(cross_doc)} | Consistency score={score}")
     if llm_found and not structural_conflicts:
-        print_msg(f"[Agent7] LLM detected soft logical inconsistencies (no structural triple conflicts).")
+        print_msg("[Agent7] LLM detected soft logical inconsistencies (no structural triple conflicts).")
     
     return {
         "triple_conflicts":     triple_conflicts,

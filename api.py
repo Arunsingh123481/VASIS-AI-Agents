@@ -7,8 +7,6 @@ Run with: python api.py
 import os
 import sys
 import io
-import os
-import sys
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -297,7 +295,7 @@ def index_local_file(
 
         return IndexResponse(
             session_id=session_id,
-            message=f"Document indexed successfully.",
+            message="Document indexed successfully.",
             stats=rag.get_stats()
         )
     except Exception as e:

@@ -11,7 +11,6 @@ Strategy:
 """
 
 from typing import Dict, List, Tuple, Any
-import re
 
 
 def _text_keyword_score(text: str, keywords: List[str]) -> float:

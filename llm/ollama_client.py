@@ -8,7 +8,6 @@ _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 
 
 import json
 import time
-import requests
 import re
 from config import OLLAMA_URL, DEFAULT_MODEL, AGENT_MODEL, API_TIMEOUT, API_RETRIES
 from utils.exceptions import ModelError

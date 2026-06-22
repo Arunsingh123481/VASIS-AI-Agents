@@ -16,6 +16,7 @@ env/
 .pageindex_cache/
 *.log
 *.txt
+!requirements.txt
 *.resolved
 sessions_db.json
 stress_test_results.json

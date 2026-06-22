@@ -4,7 +4,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from agents.agent10_super import _agent10_review
-from agent_routing_rules import ROUTING_RULES
 from agents.agent1_router import get_agents_for_query
 
 def main():

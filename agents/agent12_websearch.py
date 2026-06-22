@@ -10,9 +10,9 @@
 import os
 import time
 import requests
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
-from llm.router import generate, generate_json
+from llm.router import generate_json
 from config import (
     SERPER_API_KEY, WEB_SEARCH_MAX_RESULTS,
     WEB_SEARCH_TIMEOUT
@@ -254,7 +254,8 @@ def _deduplicate(results: List[Dict]) -> List[Dict]:
 def search_web(
     topic: str,
     novel_connections: list = None,
-    max_per_source: int = 5
+    max_per_source: int = 5,
+    queries_override: List[str] = None
 ) -> Dict[str, Any]:
     """
     Main Agent 12 entry point.
@@ -264,6 +265,7 @@ def search_web(
         topic:             Research topic or gap description
         novel_connections: Agent 11 causal chains (optional)
         max_per_source:    Max results per API source
+        queries_override:  List of predefined queries to use instead of generating them.
 
     Returns:
         Dict with sources, queries used, and search metadata
@@ -271,12 +273,15 @@ def search_web(
     start_time = time.time()
 
     print_msg(f"\n{'='*50}")
-    print_msg(f"[Agent12] WEB SEARCH")
+    print_msg("[Agent12] WEB SEARCH")
     print_msg(f"[Agent12] Topic: {topic[:60]}")
     print_msg(f"{'='*50}\n")
 
     # Step 1: Formulate queries
-    queries = _formulate_queries(topic, novel_connections)
+    if queries_override:
+        queries = queries_override
+    else:
+        queries = _formulate_queries(topic, novel_connections)
     print_msg(f"[Agent12] Generated {len(queries)} search queries")
 
     all_results = []
@@ -285,19 +290,19 @@ def search_web(
     primary_query = queries[0] if queries else topic
 
     # Serper (Google)
-    print_msg(f"[Agent12] Searching Google (Serper)...")
+    print_msg("[Agent12] Searching Google (Serper)...")
     serper_results = _search_serper(primary_query, num=max_per_source)
     all_results.extend(serper_results)
     print_msg(f"[Agent12]   → {len(serper_results)} results")
 
     # ArXiv
-    print_msg(f"[Agent12] Searching ArXiv...")
+    print_msg("[Agent12] Searching ArXiv...")
     arxiv_results = _search_arxiv(primary_query, max_results=max_per_source)
     all_results.extend(arxiv_results)
     print_msg(f"[Agent12]   → {len(arxiv_results)} results")
 
     # Semantic Scholar
-    print_msg(f"[Agent12] Searching Semantic Scholar...")
+    print_msg("[Agent12] Searching Semantic Scholar...")
     ss_results = _search_semantic_scholar(primary_query, max_results=max_per_source)
     all_results.extend(ss_results)
     print_msg(f"[Agent12]   → {len(ss_results)} results")
@@ -352,9 +357,16 @@ def search_for_paper(
 ) -> Dict[str, Any]:
     """
     Enhanced search for paper writing mode.
-    Generates more queries and gathers more evidence.
+    Uses 5 deterministic paper-writing queries for full coverage.
     """
-    # More queries for paper writing
+    queries = [
+        f"{topic} survey overview arxiv",
+        f"{topic} SOTA 2024 2025",
+        f"{topic} architecture design benchmark evaluation",
+        f"{topic} implementation code guide tutorial",
+        f"{topic} limitations open problems future work"
+    ]
+    
     query_count_map = {
         "research_article":    4,
         "review_article":      8,
@@ -370,5 +382,6 @@ def search_for_paper(
     return search_web(
         topic=topic,
         novel_connections=novel_connections,
-        max_per_source=min(max_per + 2, WEB_SEARCH_MAX_RESULTS)
+        max_per_source=min(max_per + 2, WEB_SEARCH_MAX_RESULTS),
+        queries_override=queries
     )

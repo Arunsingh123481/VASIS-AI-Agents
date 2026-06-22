@@ -19,8 +19,24 @@ def _sanitize_str_field(value: str, allowed: list, default: str) -> str:
     return first if first in allowed else default
 
 
-def validate(answer: str, narrative: str, query: str) -> dict:
+def validate(answer: str, narrative: str, query: str, entities: list = None) -> dict:
     """Check every claim in the answer against context. Triggers requery signal on low confidence."""
+    # Entity-based topical relevance check: if query entities are specified
+    # but none are found in the narrative context, flag as out-of-scope.
+    if entities:
+        narrative_lower = narrative.lower()
+        overlap = [ent for ent in entities if ent.lower() in narrative_lower]
+        if not overlap:
+            print_msg(f"[Agent6] Entity-based topical relevance check failed. No query entities {entities} found in narrative context.")
+            return {
+                "grounded_claims": [],
+                "ungrounded_claims": [f"Query entities {entities} are not present in the document context."],
+                "confidence_score": 0.0,
+                "verdict": "ungrounded",
+                "recommendation": "reject",
+                "refined_query": query
+            }
+
     prompt = f"""Check every claim in answer against context.
 Query: {query}
 Context: {narrative[:3000]}

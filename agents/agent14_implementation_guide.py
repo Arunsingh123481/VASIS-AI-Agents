@@ -15,7 +15,7 @@
 #  10. Hardware requirements
 
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 
 from llm.router import generate, generate_json
 from config import DEFAULT_RESEARCHER_LEVEL
@@ -438,7 +438,7 @@ def guide_implementation(
     start_time = time.time()
 
     print_msg(f"\n{'='*60}")
-    print_msg(f"[Agent14] IMPLEMENTATION GUIDE")
+    print_msg("[Agent14] IMPLEMENTATION GUIDE")
     _innov_display = innovation if len(innovation) <= 80 else innovation[:77] + "..."
     print_msg(f"[Agent14] Innovation: {_innov_display}")
     print_msg(f"[Agent14] Level: {researcher_level}")

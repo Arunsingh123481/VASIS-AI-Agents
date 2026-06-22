@@ -1,0 +1,15 @@
+# Ruff config. Excludes the vendored third-party reference folder so CI's
+# `ruff check .` (.github/workflows/ci.yml) only lints code this project
+# actually owns/imports from.
+extend-exclude = ["PageIndex_Official"]
+
+[lint.per-file-ignores]
+# These files intentionally set os.environ / sys.stdout / sys.path before
+# later imports that depend on that setup (e.g. UTF-8 stdout wrapping,
+# load_dotenv(), or path injection so `from pipeline import ...` resolves
+# when run as a script). That's deliberate, not a style violation.
+"api.py" = ["E402"]
+"agents/agent1_router.py" = ["E402"]
+"retrieval/anchor_selector.py" = ["E402"]
+"smart_routing_implementation.py" = ["E402"]
+

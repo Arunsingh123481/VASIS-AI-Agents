@@ -6,7 +6,7 @@ This replaces vector similarity search for section-level retrieval.
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
-from console_helper import print_msg, tqdm, print_panel
+from console_helper import print_msg
 
 
 import json
@@ -82,7 +82,7 @@ Return ONLY valid JSON. No markdown fences."""
     if not unique_nodes and tree_nodes:
         unique_nodes = [tree_nodes[0]]
 
-    print_msg(f"\n[bold green]Tree Navigation Result:[/bold green]")
+    print_msg("\n[bold green]Tree Navigation Result:[/bold green]")
     print_msg(f"[dim]Reasoning: {reasoning}[/dim]")
     for node in unique_nodes:
         print_msg(f"  → [yellow][{node['node_id']}] {node['title']}[/yellow] (pages {node['start_page']}–{node['end_page']})")

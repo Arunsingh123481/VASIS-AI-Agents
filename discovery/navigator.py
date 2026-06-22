@@ -1,7 +1,6 @@
 import os
 import json
 import requests
-import urllib.parse
 from typing import List, Dict, Any
 
 import sys
@@ -121,7 +120,7 @@ def download_pdf(url: str, output_dir: str, filename: str) -> str:
 
 def run_phase_1(broad_topic: str):
     """Executes the full Phase 1 Workflow."""
-    print(f"\n--- Phase 1: Research Navigator ---")
+    print("\n--- Phase 1: Research Navigator ---")
     print(f"Broad Topic: {broad_topic}")
     
     # 1 & 2. Narrow Topic

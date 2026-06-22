@@ -6,7 +6,7 @@ This eliminates false positives from global similarity search.
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
-from console_helper import print_msg, tqdm, print_panel
+from console_helper import print_msg
 
 
 from typing import List, Dict
@@ -48,7 +48,6 @@ def select_anchors(
 
     # Embed query and all atoms
     model = _get_model()
-    import numpy as np
 
     query_emb = model.encode(query, convert_to_tensor=False)
     atom_texts = [a["text"] for a in atoms]

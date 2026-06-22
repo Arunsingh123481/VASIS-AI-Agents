@@ -1,5 +1,4 @@
 import os
-import sys
 
 from pipeline import PageIndexREMSE
 from storage.store import load_index
