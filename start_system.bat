@@ -2,6 +2,10 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
+:: Force Python to run in UTF-8 mode on Windows (avoids UnicodeEncodeError on block chars/agents)
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
+
 :: Generate ESC character for ANSI color codes
 for /F %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
 
@@ -63,7 +67,7 @@ if not exist "%pdf%" (
     pause
     goto menu
 )
-python main.py chat "%pdf%"
+call python main.py chat "%pdf%"
 pause
 goto menu
 
@@ -82,7 +86,7 @@ if not exist "%pdf%" (
     pause
     goto menu
 )
-python main.py index "%pdf%" --show-tree
+call python main.py index "%pdf%" --show-tree
 pause
 goto menu
 
@@ -124,7 +128,7 @@ if %pdf_count% GEQ 6 (
 :: Validate file exists
 if not exist "%pdf%" (
     echo.
-    echo   %ESC%[38;5;196m[ERROR] File not found: %pdf%%ESC%[0m
+    echo   %ESC%[38;5;196m[ERROR] File not found: "%pdf%"%ESC%[0m
     echo   %ESC%[38;5;244mCheck the path and try again (no quotes needed).%ESC%[0m
     echo.
     goto vault_add_pdf
@@ -152,11 +156,11 @@ if %pdf_count% LSS 2 (
 echo.
 echo   %ESC%[38;5;45mStarting Vault with %pdf_count% paper(s)...%ESC%[0m
 echo.
-if %pdf_count%==2 python main.py vault "%pdf1%" "%pdf2%"
-if %pdf_count%==3 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%"
-if %pdf_count%==4 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%"
-if %pdf_count%==5 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%"
-if %pdf_count%==6 python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%" "%pdf6%"
+if %pdf_count%==2 call python main.py vault "%pdf1%" "%pdf2%"
+if %pdf_count%==3 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%"
+if %pdf_count%==4 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%"
+if %pdf_count%==5 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%"
+if %pdf_count%==6 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%" "%pdf6%"
 pause
 goto menu
 
@@ -168,7 +172,7 @@ echo %ESC%[38;5;208m============================================================
 echo %ESC%[38;5;208m            INDEXED DOCUMENTS IN LOCAL CACHE VAULT              %ESC%[0m
 echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-python main.py list
+call python main.py list
 echo.
 pause
 goto menu
@@ -193,7 +197,7 @@ echo %ESC%[38;5;208m============================================================
 echo %ESC%[38;5;208m                    RUNNING TEST SUITE                          %ESC%[0m
 echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-python -m pytest tests/ -v
+call python -m pytest tests/ -v
 echo.
 echo %ESC%[38;5;208m----------------------------------------------------------------%ESC%[0m
 pause
@@ -209,7 +213,7 @@ echo   API will be available at http://127.0.0.1:8000
 echo   Docs at http://127.0.0.1:8000/docs
 echo   Press Ctrl+C to stop the server.
 echo.
-python api.py
+call python api.py
 pause
 goto menu
 
