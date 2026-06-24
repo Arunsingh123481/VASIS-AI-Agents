@@ -198,3 +198,36 @@ This sequentially tests:
 2.  **Hallucination safety** via out-of-scope negative controls (forcing the grounding and calibration agents to reject quantum computing queries in standard transformer papers).
 3.  **Multi-Hop Traversal recall** across adjacent document sections.
 4.  **Bibliography retrieval validation** verifying last-page extraction.
+
+---
+
+## ─── INTERFACE SCREENSHOTS & GALLERY ─────────────────────────────────
+
+Below is a visual walkthrough of the system interfaces, showing the autocomplete CLI, the full-screen Textual TUI dashboard, and multi-agent consensus workflows.
+
+![Interface Screenshot 1](images/1.png)
+*Figure 1: Swarm orchestration dashboard showing real-time logs and active agent indicators.*
+
+![Interface Screenshot 2](images/2.png)
+*Figure 2: Intent routing analysis and document indexing flow.*
+
+![Interface Screenshot 3](images/3.png)
+*Figure 3: Interactive CLI shell prompt-toolkit autocomplete interface.*
+
+![Interface Screenshot 4](images/4.png)
+*Figure 4: Bidirectional stateful context expansion logs in the terminal.*
+
+![Interface Screenshot 5](images/5.png)
+*Figure 5: High-resolution detail of dynamic reasoning steps.*
+
+![Interface Screenshot 6](images/6.png)
+*Figure 6: Cross-document consensus and contradiction validator output.*
+
+![Interface Screenshot 7](images/7.png)
+*Figure 7: Causal relationship mapping and knowledge graph traversal.*
+
+![Interface Screenshot 8](images/8.png)
+*Figure 8: Mathematical confidence scoring and response calibration.*
+
+![Interface Screenshot 9](images/9.png)
+*Figure 9: Autonomous literature search and paper drafting results.*
