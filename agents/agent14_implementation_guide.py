@@ -20,6 +20,7 @@ from typing import Dict, Any
 from llm.router import generate, generate_json
 from config import DEFAULT_RESEARCHER_LEVEL
 from console_helper import print_msg
+from agents.agent13_paper_writer import clean_topic
 
 SYSTEM_GUIDE = (
     "You are an expert AI researcher and engineer "
@@ -108,7 +109,7 @@ def _design_architecture(
     """Create a detailed text-based architecture diagram."""
     components = breakdown.get("technical_components", [])
     comp_list = "\n".join([
-        f"  - {c.get('name', '')}: {c.get('description', '')}"
+        f"  - {c.get('name', '')}: {c.get('description', '')}" if isinstance(c, dict) else f"  - {c}"
         for c in components
     ])
 
@@ -163,7 +164,7 @@ def _write_pseudocode(breakdown: dict, narrative: str) -> str:
 def _write_code_skeleton(breakdown: dict, narrative: str) -> str:
     """Write complete Python/PyTorch code skeleton."""
     components = [
-        c.get("name", "") for c in
+        c.get("name", "") if isinstance(c, dict) else c for c in
         breakdown.get("technical_components", [])
     ]
 
@@ -306,7 +307,7 @@ def _create_plan(
         depth = "simplified version, core ideas only"
 
     components = [
-        c.get("name", "") for c in
+        c.get("name", "") if isinstance(c, dict) else c for c in
         breakdown.get("technical_components", [])
     ]
     comp_str = "\n".join(
@@ -429,6 +430,7 @@ def guide_implementation(
     Returns:
         Complete implementation guide as dict
     """
+    innovation = clean_topic(innovation)
     atom_ids = atom_ids or []
     web_evidence = web_evidence or {"sources": []}
     novel_connections = novel_connections or []

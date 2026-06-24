@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.markdown import Markdown
 from rich import box
 from config import DEFAULT_MODEL
+from agent_routing_rules import QUERY_DETECTION_PATTERNS
 
 console = Console()
 
@@ -35,6 +36,46 @@ def _print_banner():
           [bold cyan]⚡ VASIS AI-RE-MSE — 14-Agent Consensus Engine ⚡[/bold cyan]
     """
     console.print(Panel(banner_text, border_style="orange1", box=box.ROUNDED, expand=False))
+
+
+def save_as_docx(title: str, content: str, filepath: str) -> None:
+    """Helper to convert Markdown formatting to a styled python-docx Document."""
+    from docx import Document
+    doc = Document()
+    doc.add_heading(title, level=0)
+
+    # Parse markdown line-by-line
+    lines = content.split('\n')
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped:
+            i += 1
+            continue
+
+        # Headings
+        if stripped.startswith('# '):
+            doc.add_heading(stripped[2:], level=1)
+        elif stripped.startswith('## '):
+            doc.add_heading(stripped[3:], level=2)
+        elif stripped.startswith('### '):
+            doc.add_heading(stripped[4:], level=3)
+        elif stripped.startswith('#### '):
+            doc.add_heading(stripped[5:], level=4)
+        # Bullet list items
+        elif stripped.startswith('* ') or stripped.startswith('- '):
+            doc.add_paragraph(stripped[2:], style='List Bullet')
+        # Numbered list items
+        elif re.match(r'^\d+\.\s', stripped):
+            match = re.match(r'^\d+\.\s(.*)', stripped)
+            doc.add_paragraph(match.group(1) if match else stripped, style='List Number')
+        # Standard paragraph
+        else:
+            doc.add_paragraph(stripped)
+        i += 1
+
+    doc.save(filepath)
 
 
 def _save_agent_output(
@@ -84,7 +125,115 @@ def _save_agent_output(
         f.write(meta_block)
         f.write(content)
 
+    # Save a copy as a styled Microsoft Word DOCX document
+    try:
+        docx_filename = filename.replace(".md", ".docx")
+        docx_filepath = os.path.join(OUTPUT_DIR, docx_filename)
+        save_as_docx(title_line.replace("#", "").strip(), meta_block + content, docx_filepath)
+    except Exception as e:
+        import sys
+        print(f"Warning: Failed to export Word document: {e}", file=sys.stderr)
+
     return filepath
+
+
+# Available options for interactive prompting
+VENUES = ["IEEE", "NeurIPS", "ICML", "ICLR", "ACM", "Springer", "Elsevier"]
+ARTICLE_TYPES = [
+    "research_article", "review_article", "systematic_review",
+    "short_communication", "perspective_article", "technical_note",
+    "case_study", "letter_to_editor"
+]
+RESEARCHER_LEVELS = ["beginner", "masters", "phd"]
+
+
+def _prompt_paper_customization(is_vault=False, vault_papers=None) -> tuple:
+    """
+    Interactively prompt the user for paper customization details.
+    1. Select Target Paper (only in Vault mode)
+    2. Select Target Venue / Journal
+    3. Select Article Type
+    """
+    console.print(Panel(
+        "[bold yellow]📄 Research Paper Writing Mode detected![/bold yellow]\n"
+        "[dim]Please answer a few quick questions to customise your paper:[/dim]",
+        border_style="yellow",
+        box=box.ROUNDED
+    ))
+
+    # 1. Target Paper Selection (only in Vault mode)
+    target_paper = "all"
+    if is_vault and vault_papers:
+        console.print("[bold]Select which paper you want to write on:[/bold]")
+        console.print("  [1] All loaded papers (independently)")
+        paper_labels = list(vault_papers.keys())
+        for idx, label in enumerate(paper_labels, 2):
+            console.print(f"  [{idx}] {label}")
+        p_choice = Prompt.ask("Select paper number (or press Enter for all)", default="1")
+        try:
+            val = int(p_choice)
+            if val == 1:
+                target_paper = "all"
+            elif 2 <= val <= len(paper_labels) + 1:
+                target_paper = paper_labels[val - 2]
+        except ValueError:
+            target_paper = "all"
+
+    # 2. Target Venue / Journal Selection
+    console.print("\n[bold]Target Venue / Journal:[/bold]")
+    venues_list = ["IEEE", "DSJ", "Elsevier", "Springer", "ACM", "NeurIPS", "ICML", "ICLR"]
+    for i, v in enumerate(venues_list, 1):
+        console.print(f"  [{i}] {v}")
+    v_choice = Prompt.ask("Select venue number (or press Enter for IEEE)", default="1")
+    try:
+        venue = venues_list[int(v_choice) - 1]
+    except (ValueError, IndexError):
+        venue = "IEEE"
+
+    # 3. Article Type Selection
+    console.print("\n[bold]Article Type:[/bold]")
+    types_display = [
+        ("research_article", "Research Article"),
+        ("review_article", "Review Article"),
+        ("systematic_review", "Systematic Review"),
+        ("short_communication", "Short Communication"),
+        ("perspective_article", "Perspective Article"),
+        ("technical_note", "Technical Note"),
+        ("case_study", "Case Study"),
+        ("letter_to_editor", "Letter To Editor")
+    ]
+    for i, (_, label) in enumerate(types_display, 1):
+        console.print(f"  [{i}] {label}")
+    t_choice = Prompt.ask("Select type number (or press Enter for Research Article)", default="1")
+    try:
+        article_type = types_display[int(t_choice) - 1][0]
+    except (ValueError, IndexError):
+        article_type = "research_article"
+
+    console.print(f"\n[green]✓ Selected target: [bold]{venue}[/bold] | [bold]{article_type.replace('_', ' ').title()}[/bold][/green]\n")
+    return venue, article_type, target_paper
+
+
+def _prompt_guide_customization() -> str:
+    """Interactively prompt user for researcher level."""
+    console.print(Panel(
+        "[bold yellow]🔧 Implementation Guide Mode detected![/bold yellow]\n"
+        "[dim]Please answer a quick question to personalise your guide:[/dim]",
+        border_style="yellow",
+        box=box.ROUNDED
+    ))
+
+    console.print("[bold]Your Researcher Level:[/bold]")
+    for i, lv in enumerate(RESEARCHER_LEVELS, 1):
+        console.print(f"  [{i}] {lv.title()}")
+    lv_choice = Prompt.ask("Select level number (or press Enter for Masters)", default="2")
+    try:
+        researcher_level = RESEARCHER_LEVELS[int(lv_choice) - 1]
+    except (ValueError, IndexError):
+        researcher_level = "masters"
+
+    console.print(f"\n[green]✓ Generating guide for [bold]{researcher_level.title()}[/bold] level researcher[/green]\n")
+    return researcher_level
 
 
 @click.group()
@@ -197,7 +346,6 @@ def chat(pdf_path, model, top_k, passes):
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from pipeline import PageIndexREMSE
-    from agent_routing_rules import QUERY_DETECTION_PATTERNS
 
     rag = PageIndexREMSE(model=model)
     with console.status("[bold cyan]Swarm active — Loading and analyzing document...[/bold cyan]", spinner="dots"):
@@ -211,15 +359,6 @@ def chat(pdf_path, model, top_k, passes):
         border_style="green",
         box=box.ROUNDED
     ))
-
-    # Available options for interactive prompting
-    VENUES = ["IEEE", "NeurIPS", "ICML", "ICLR", "ACM", "Springer", "Elsevier"]
-    ARTICLE_TYPES = [
-        "research_article", "review_article", "systematic_review",
-        "short_communication", "perspective_article", "technical_note",
-        "case_study", "letter_to_editor"
-    ]
-    RESEARCHER_LEVELS = ["beginner", "masters", "phd"]
 
     while True:
         try:
@@ -251,54 +390,10 @@ def chat(pdf_path, model, top_k, passes):
             researcher_level = None
 
             if is_paper:
-                console.print(Panel(
-                    "[bold yellow]📄 Research Paper Writing Mode detected![/bold yellow]\n"
-                    "[dim]Please answer a few quick questions to customise your paper:[/dim]",
-                    border_style="yellow",
-                    box=box.ROUNDED
-                ))
-
-                # Ask for venue
-                console.print("[bold]Target Venue / Journal:[/bold]")
-                for i, v in enumerate(VENUES, 1):
-                    console.print(f"  [{i}] {v}")
-                v_choice = Prompt.ask("Select venue number (or press Enter for IEEE)", default="1")
-                try:
-                    venue = VENUES[int(v_choice) - 1]
-                except (ValueError, IndexError):
-                    venue = "IEEE"
-
-                # Ask for article type
-                console.print("\n[bold]Article Type:[/bold]")
-                for i, at in enumerate(ARTICLE_TYPES, 1):
-                    console.print(f"  [{i}] {at.replace('_', ' ').title()}")
-                at_choice = Prompt.ask("Select article type number (or press Enter for Research Article)", default="1")
-                try:
-                    article_type = ARTICLE_TYPES[int(at_choice) - 1]
-                except (ValueError, IndexError):
-                    article_type = "research_article"
-
-                console.print(f"\n[green]✓ Writing a [bold]{article_type.replace('_', ' ').title()}[/bold] for [bold]{venue}[/bold][/green]\n")
+                venue, article_type, _ = _prompt_paper_customization(is_vault=False)
 
             if is_guide:
-                console.print(Panel(
-                    "[bold yellow]🔧 Implementation Guide Mode detected![/bold yellow]\n"
-                    "[dim]Please answer a quick question to personalise your guide:[/dim]",
-                    border_style="yellow",
-                    box=box.ROUNDED
-                ))
-
-                # Ask for researcher level
-                console.print("[bold]Your Researcher Level:[/bold]")
-                for i, lv in enumerate(RESEARCHER_LEVELS, 1):
-                    console.print(f"  [{i}] {lv.title()}")
-                lv_choice = Prompt.ask("Select level number (or press Enter for Masters)", default="2")
-                try:
-                    researcher_level = RESEARCHER_LEVELS[int(lv_choice) - 1]
-                except (ValueError, IndexError):
-                    researcher_level = "masters"
-
-                console.print(f"\n[green]✓ Generating guide for [bold]{researcher_level.title()}[/bold] level researcher[/green]\n")
+                researcher_level = _prompt_guide_customization()
 
             # Execute query inside styled status spinner
             with console.status("[bold cyan]Swarm active — Analyzing query & synthesizing consensus...[/bold cyan]", spinner="arc"):
@@ -389,16 +484,22 @@ def vault(pdf_paths, model, force_reindex):
                 except Exception as e:
                     console.print(f"[red]✗ Failed to load {path}: {e}[/red]")
 
-        if len(session.papers) < 2:
-            console.print("[yellow]Warning: fewer than 2 papers loaded. Comparison/contradiction questions need at least 2.[/yellow]")
+        n = len(session.papers)
+        if n == 0:
+            console.print("[red]No papers were loaded successfully. Exiting.[/red]")
+            return
 
         labels_str = ", ".join(session.papers.keys())
+        cross_doc_note = (
+            "Questions using comparison language (e.g. 'contradict', 'compare', 'consistent')\n"
+            "are routed through a cross-document check across all loaded papers."
+            if n >= 2 else
+            "Load 2+ papers for cross-document comparison/contradiction analysis."
+        )
         console.print(Panel(
             f"[bold orange1]Papers loaded:[/bold orange1] [cyan]{labels_str}[/cyan]\n\n"
-            "Ask anything. Questions that mention comparison/contradiction-style language\n"
-            "(e.g. 'contradict', 'disagree', 'compare', 'consistent') are routed through a\n"
-            "real cross-document check; everything else is answered by each paper individually.\n"
-            "Commands: [bold cyan]list[/bold cyan] (show loaded papers) | [bold cyan]stats[/bold cyan] | [bold cyan]quit[/bold cyan] (exit)",
+            f"{cross_doc_note}\n"
+            "Commands: [bold cyan]list[/bold cyan] | [bold cyan]stats[/bold cyan] | [bold cyan]quit[/bold cyan]",
             title="[bold green]● Vault Chat Active[/bold green]",
             border_style="green",
             box=box.ROUNDED
@@ -422,9 +523,31 @@ def vault(pdf_paths, model, force_reindex):
                         console.print(f"  [cyan]{s['label']}[/cyan]: {s['total_atoms']} atoms, {s['total_triples']} triples, {s['tree_nodes']} sections")
                     continue
 
+                # ── Detect if paper writing or implementation guide is requested ──
+                q_lower = question.lower()
+                is_paper = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
+                is_guide = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
+
+                venue = None
+                article_type = None
+                researcher_level = None
+                target_paper = "all"
+
+                if is_paper:
+                    venue, article_type, target_paper = _prompt_paper_customization(is_vault=True, vault_papers=session.papers)
+
+                if is_guide:
+                    researcher_level = _prompt_guide_customization()
+
                 if is_comparison_question(question):
                     with console.status("[bold cyan]Swarm active — querying every paper + running cross-document audit...[/bold cyan]", spinner="arc"):
-                        result = session.compare(question)
+                        result = session.compare(
+                            question,
+                            venue=venue,
+                            article_type=article_type,
+                            researcher_level=researcher_level,
+                            target_paper=target_paper
+                        )
 
                     if "error" in result:
                         console.print(f"[red]{result['error']}[/red]")
@@ -459,14 +582,43 @@ def vault(pdf_paths, model, force_reindex):
                             console.print(f"    Side B: {d.get('side_b', '')}")
                             console.print(f"    Open issue: {d.get('open_issue', '')}")
                 else:
-                    with console.status("[bold cyan]Swarm active — querying every loaded paper...[/bold cyan]", spinner="arc"):
-                        results = session.ask_all(question)
+                    with console.status("[bold cyan]Swarm active — querying loaded paper(s)...[/bold cyan]", spinner="arc"):
+                        results = session.ask_all(
+                            question,
+                            venue=venue,
+                            article_type=article_type,
+                            researcher_level=researcher_level,
+                            target_paper=target_paper
+                        )
                     for label, r in results.items():
                         console.print(Panel(
                             Markdown(r.get("answer", "")),
                             title=f"[bold green]{label}[/bold green]",
                             border_style="green", box=box.ROUNDED, expand=False
                         ))
+
+                        # Auto-save Agent 13 / 14 outputs for each paper in vault mode
+                        paper_result = r.get("paper_result")
+                        impl_result  = r.get("impl_result")
+
+                        if paper_result and paper_result.get("full_text"):
+                            saved_path = _save_agent_output(
+                                content=paper_result["full_text"],
+                                agent_name="paper",
+                                topic=f"{label}_{question}",
+                                venue=venue,
+                                article_type=article_type,
+                            )
+                            console.print(f"\n[bold green]📄 [{label}] Paper saved →[/bold green] [cyan]{saved_path}[/cyan]")
+
+                        if impl_result and impl_result.get("full_text"):
+                            saved_path = _save_agent_output(
+                                content=impl_result["full_text"],
+                                agent_name="guide",
+                                topic=f"{label}_{question}",
+                                researcher_level=researcher_level,
+                            )
+                            console.print(f"\n[bold green]🔧 [{label}] Guide saved →[/bold green] [cyan]{saved_path}[/cyan]")
 
             except KeyboardInterrupt:
                 console.print("\n[yellow]Interrupted. Goodbye![/yellow]")
@@ -506,8 +658,8 @@ def history(pdf_path):
             console.print(f"  Pages: {pages}")
 
 
-@cli.command()
-def list():
+@cli.command(name="list")
+def list_documents():
     """List all indexed documents in the local cache vault."""
     import os
     from storage.store import STORAGE_DIR

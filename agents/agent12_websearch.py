@@ -274,7 +274,7 @@ def search_web(
 
     print_msg(f"\n{'='*50}")
     print_msg("[Agent12] WEB SEARCH")
-    print_msg(f"[Agent12] Topic: {topic[:60]}")
+    print_msg(f"[Agent12] Topic: {topic}")
     print_msg(f"{'='*50}\n")
 
     # Step 1: Formulate queries

@@ -38,7 +38,7 @@ class FakeRag:
     like the real decomposer does per-document, and triples tagged with
     the SAME doc_id on every triple (as the real pipeline does)."""
 
-    def __init__(self, doc_id, triples, query_answer="answer", narrative=""):
+    def __init__(self, doc_id, triples, query_answer="answer", narrative="narrative"):
         self.doc_id = doc_id
         self.triples = triples
         self._query_answer = query_answer

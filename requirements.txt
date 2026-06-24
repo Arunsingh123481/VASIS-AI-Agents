@@ -36,6 +36,7 @@ arxiv>=2.1.0
 # ── CLI / UX ──
 click>=8.1.0
 rich>=13.7.0
+prompt_toolkit>=3.0.43
 tqdm>=4.66.0
 python-dotenv>=1.0.0
 

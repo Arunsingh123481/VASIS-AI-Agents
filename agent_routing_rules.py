@@ -600,16 +600,26 @@ QUERY_DETECTION_PATTERNS = {
         "perspective article", "technical note on",
         "systematic review on", "write for journal",
         "conference paper", "submit to",
+        "generate a paper", "author a paper",
+        "write a paper on", "write me a paper",
+        "produce a paper", "create a research paper",
+        "write a survey", "write a survey on",
+        "write a literature review",
     ],
 
     "implementation_guide": [
         "how to implement", "implement this",
-        "guide me", "show me how",
+        "guide me", "guide me to implement",
+        "guide me to build", "guide me through",
+        "show me how", "show me how to implement",
         "how do i build", "code for",
         "step by step", "implementation plan",
         "help me implement", "how to build",
         "development guide", "coding guide",
-        "implementation guide",
+        "implementation guide", "help me code",
+        "how to code", "teach me to implement",
+        "build this", "build a", "create an implementation",
+        "practical guide", "hands-on guide",
     ],
 }
 

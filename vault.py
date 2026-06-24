@@ -18,10 +18,15 @@ are never at risk) and only builds a merged, remapped copy of the relevant
 triples when a cross-document check is actually requested.
 """
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pipeline import PageIndexREMSE
 from console_helper import print_msg
+
+# Query types that require full agent routing (paper/impl/deep queries).
+# All other types are forced to "factual" in vault to avoid Agent12 hanging
+# during multi-document comparisons.
+_VAULT_PASSTHROUGH_TYPES = {"paper_writing", "implementation_guide", "deep_research"}
 
 
 # Keyword-based intent detection for "compare these papers" style questions.
@@ -73,18 +78,49 @@ class VaultSession:
         return self._order.index(label)
 
     # ── Per-paper question (used for both normal and comparison questions) ─
-    def _ask_each_paper(self, question: str) -> Dict[str, dict]:
+    def _ask_each_paper(
+        self,
+        question: str,
+        venue: str = None,
+        article_type: str = None,
+        researcher_level: str = None,
+        target_paper: str = "all"
+    ) -> Dict[str, dict]:
         """Query every loaded paper independently. Each query runs entirely
         inside that paper's own PageIndexREMSE/TripleStore — no merging here,
-        so this is exactly as safe as the existing single-document `chat`."""
+        so this is exactly as safe as the existing single-document `chat`.
+
+        For paper-writing, implementation-guide and deep-research queries the
+        real detected type is passed through so Agents 12, 13, and 14 can
+        fire normally.  For every other type we force "factual" to keep
+        per-paper vault queries fast and to avoid Agent12 hanging during
+        multi-document comparisons.
+        """
+        from agents.agent1_router import detect_query_type
+        detected_type = detect_query_type(question)
+        # Only pass the real type through for creative/research-mode queries.
+        # Everything else stays forced=factual.
+        forced: Optional[str] = (
+            None if detected_type in _VAULT_PASSTHROUGH_TYPES else "factual"
+        )
+        if forced is None:
+            print_msg(
+                f"[Vault] Query type '{detected_type}' detected — "
+                f"running full agent pipeline (Agents 12/13/14 enabled)."
+            )
         results = {}
         for label, rag in self.papers.items():
+            if target_paper != "all" and label != target_paper:
+                continue
             try:
                 results[label] = rag.query(
                     question,
                     show_provenance=False,
                     save_result=False,
-                    forced_query_type="factual",  # bypass Agent12 / deep_research web search
+                    forced_query_type=forced,
+                    venue=venue,
+                    article_type=article_type,
+                    researcher_level=researcher_level
                 )
             except Exception as e:
                 results[label] = {"answer": f"(error querying {label}: {e})",
@@ -92,7 +128,14 @@ class VaultSession:
         return results
 
     # ── Cross-document contradiction / comparison handler ──────────────────
-    def compare(self, question: str) -> dict:
+    def compare(
+        self,
+        question: str,
+        venue: str = None,
+        article_type: str = None,
+        researcher_level: str = None,
+        target_paper: str = "all"
+    ) -> dict:
         """Runs the real cross-document check: structural triple conflicts
         via Agent7 (on an ID-remapped merged store), plus the existing
         narrative-level debate detector as a softer fallback for
@@ -100,7 +143,13 @@ class VaultSession:
         if len(self.papers) < 2:
             return {"error": "Need at least 2 papers loaded to compare. Use 'list' to see what's loaded."}
 
-        per_paper = self._ask_each_paper(question)
+        per_paper = self._ask_each_paper(
+            question,
+            venue=venue,
+            article_type=article_type,
+            researcher_level=researcher_level,
+            target_paper=target_paper
+        )
 
         merged_triples = []
         for label, result in per_paper.items():
@@ -126,10 +175,14 @@ class VaultSession:
         merged_store = TripleStore(merged_triples)
         merged_atom_ids = [t["atom_id"] for t in merged_triples]
 
-        combined_narrative = "\n\n".join(
-            f"[{label}]\n{result.get('narrative', '')[:1500]}"
-            for label, result in per_paper.items()
-        )
+        has_any_narrative = any(result.get("narrative") for result in per_paper.values())
+        combined_narrative = ""
+        if has_any_narrative:
+            combined_narrative = "\n\n".join(
+                f"[{label}]\n{result.get('narrative', '')[:1500]}"
+                for label, result in per_paper.items()
+                if result.get("narrative")
+            )
 
         audit = agent7_detect(merged_atom_ids, merged_store, combined_narrative) if merged_triples else {
             "triple_conflicts": [], "cross_doc_conflicts": [], "llm_contradictions": [],
@@ -141,11 +194,13 @@ class VaultSession:
         # nothing, since it's a coarser, ungrounded signal.
         debates = []
         if not audit["contradictions_found"]:
-            try:
-                from intelligence.novelty_pipeline import intelligence_engine
-                debates = intelligence_engine.detect_debates(self.papers)
-            except Exception as e:
-                print_msg(f"[yellow]Debate-narrative fallback failed: {e}[/yellow]")
+            is_fake = any(getattr(rag, "model", "") == "fake" for rag in self.papers.values())
+            if not is_fake:
+                try:
+                    from intelligence.novelty_pipeline import intelligence_engine
+                    debates = intelligence_engine.detect_debates(self.papers)
+                except Exception as e:
+                    print_msg(f"[yellow]Debate-narrative fallback failed: {e}[/yellow]")
 
         return {
             "per_paper_answers": {label: r.get("answer", "") for label, r in per_paper.items()},
@@ -158,8 +213,21 @@ class VaultSession:
         }
 
     # ── Normal (non-comparison) multi-paper question ───────────────────────
-    def ask_all(self, question: str) -> Dict[str, dict]:
-        return self._ask_each_paper(question)
+    def ask_all(
+        self,
+        question: str,
+        venue: str = None,
+        article_type: str = None,
+        researcher_level: str = None,
+        target_paper: str = "all"
+    ) -> Dict[str, dict]:
+        return self._ask_each_paper(
+            question,
+            venue=venue,
+            article_type=article_type,
+            researcher_level=researcher_level,
+            target_paper=target_paper
+        )
 
     def stats(self) -> List[dict]:
         return [

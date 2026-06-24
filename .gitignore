@@ -21,3 +21,9 @@ env/
 sessions_db.json
 stress_test_results.json
 uploads/
+
+# Generated outputs
+outputs/
+
+# Shell history
+.vasis_history

@@ -1174,10 +1174,11 @@ Return JSON:
 
         # Check if paper writing or implementation guide is requested via keywords
         is_paper_writing_requested = (query_type == "paper_writing") or (
-            query_type == "deep_research" and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
+            query_type in ("deep_research", "implementation_guide") and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
         )
         is_impl_guide_requested = (query_type == "implementation_guide") or (
-            query_type == "deep_research" and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
+            # Fire Agent14 when impl keywords appear alongside paper_writing OR deep_research
+            query_type in ("deep_research", "paper_writing") and any(pat in question.lower() for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
         )
 
         # Pre-parse venue and article type so they are available for web search and paper writing
@@ -1286,7 +1287,8 @@ Return JSON:
                    and not sq.get("out_of_scope", False)
             ]
 
-            if len(_successful_retrievals) == 0:
+            has_web_sources = web_result is not None and len(web_result.get("sources", [])) > 0
+            if len(_successful_retrievals) == 0 and not has_web_sources:
                 print_msg(
                     "[Agent10] ⚠ Out-of-scope hard gate triggered — "
                     "Agent13 skipped (0 successful retrievals)."

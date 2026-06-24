@@ -1,0 +1,1375 @@
+#!/usr/bin/env python3
+"""
+VASIS AI — Interactive CLI Shell
+Rich + Prompt Toolkit terminal interface.
+────────────────────────────────────────
+Usage:
+    python vasis_cli.py
+    python vasis_cli.py --venue IEEE --type research_article
+
+Drop-in: replaces the old main.py chat loop with a styled, autocomplete-enabled shell.
+All dispatch methods call the real VASIS agent backend.
+"""
+
+import sys
+import os
+import re
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+# ── Rich ──────────────────────────────────────────────────────────────────────
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.table import Table
+from rich.markdown import Markdown
+from rich.rule import Rule
+from rich.columns import Columns
+from rich import box
+
+# ── Prompt Toolkit ────────────────────────────────────────────────────────────
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.styles import Style
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+
+# ── Project imports ───────────────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import DEFAULT_MODEL, AGENT_MODEL, REASONING_MODEL
+from agent_routing_rules import QUERY_DETECTION_PATTERNS
+
+# =============================================================================
+# THEME — edit these to change the look
+# =============================================================================
+
+class Theme:
+    PRIMARY   = "#7C3AED"   # Brand purple
+    SECONDARY = "#A78BFA"   # Light purple
+    SUCCESS   = "#10B981"   # Green
+    WARNING   = "#F59E0B"   # Amber
+    ERROR     = "#EF4444"   # Red
+    INFO      = "#60A5FA"   # Blue
+    MUTED     = "#6B7280"   # Gray
+    DIM       = "#374151"   # Dark gray
+    TEXT      = "#F9FAFB"   # Near white
+
+    # Grade colours
+    GRADE = {
+        "A": ("#10B981", "✦"),   # green
+        "B": ("#60A5FA", "✓"),   # blue
+        "C": ("#F59E0B", "◆"),   # amber
+        "D": ("#EF4444", "◇"),   # red
+        "F": ("#EF4444", "✗"),   # red bold
+        "S": ("#6B7280", "—"),   # skip
+    }
+
+T = Theme  # shorthand
+
+# =============================================================================
+# AGENT REGISTRY
+# =============================================================================
+
+AGENTS = {
+    1:  "Router",        2:  "Decomposer",    3:  "Navigator",
+    4:  "Retrieval",     5:  "Expansion",     6:  "Validation",
+    7:  "Contradiction", 8:  "Temporal",      9:  "Calibration",
+    10: "Supervisor",    11: "Synthesis",     12: "Web Search",
+    13: "Paper Writer",  14: "Impl. Guide",
+}
+
+# =============================================================================
+# CONSOLE  (single global instance — thread-safe Rich console)
+# =============================================================================
+
+console = Console(highlight=False, soft_wrap=True)
+
+# =============================================================================
+# PRINT HELPERS
+# =============================================================================
+
+def nl():
+    console.print()
+
+def divider(label: str = ""):
+    """Thin section rule"""
+    if label:
+        console.print()
+        line = Text()
+        line.append(f"  {label.upper()}", style=f"bold {T.MUTED}")
+        console.print(line)
+    else:
+        console.rule(style=T.DIM)
+    nl()
+
+
+def agent_line(name: str, grade: str, score: float, elapsed: float):
+    """
+    Single completed-agent line, e.g.
+      ✦ Paper Writer    grade=A   0.90   583.4s
+    """
+    color, icon = T.GRADE.get(grade, (T.MUTED, "·"))
+    score_color = T.SUCCESS if score >= 0.8 else T.WARNING if score >= 0.5 else T.ERROR
+
+    line = Text()
+    line.append(f"  {icon} ", style=f"bold {color}")
+    line.append(f"{name:<16}", style=T.TEXT)
+    line.append(f" grade={grade}  ", style=f"bold {color}")
+    line.append(f"{score:.2f}  ", style=score_color)
+    line.append(f"{elapsed:.1f}s", style=T.MUTED)
+    console.print(line)
+
+
+def skip_line(name: str):
+    line = Text()
+    line.append(f"  — ", style=T.DIM)
+    line.append(f"{name:<16}", style=T.DIM)
+    line.append("skip", style=T.DIM)
+    console.print(line)
+
+
+def tool_line(action: str, detail: str = ""):
+    """  ◆  Indexed  NIPS-2017... · 123 atoms"""
+    line = Text()
+    line.append("  ◆ ", style=f"bold {T.PRIMARY}")
+    line.append(action, style=f"bold {T.TEXT}")
+    if detail:
+        line.append(f"  {detail}", style=T.MUTED)
+    console.print(line)
+
+
+def info_line(msg: str):
+    console.print(Text(f"  {msg}", style=T.MUTED))
+
+
+def error_line(msg: str):
+    console.print(Text(f"  ✗ {msg}", style=f"bold {T.ERROR}"))
+
+
+def success_line(msg: str):
+    console.print(Text(f"  ✓ {msg}", style=T.SUCCESS))
+
+
+def grounding_banner(ratio: float, tagged: int, total: int):
+    """
+    Visible banner when grounding ratio is below threshold.
+    """
+    if ratio >= 0.85:
+        return  # all good, no banner
+
+    pct = int(ratio * 100)
+    if ratio == 0.0:
+        msg = f"✗  Grounding FAIL — {tagged}/{total} sentences tagged (0%)"
+        style = T.ERROR
+        border = "red"
+    else:
+        msg = f"⚠  Low grounding — {tagged}/{total} sentences tagged ({pct}%)"
+        style = T.WARNING
+        border = "yellow"
+
+    nl()
+    console.print(Panel(
+        f"[bold {style}]{msg}[/]\n"
+        f"[{T.MUTED}]Threshold is 85%. Verify citations before publishing.[/]",
+        border_style=border,
+        padding=(0, 2),
+    ))
+
+
+def paper_panel(word_count: int, sections: int, preview: str):
+    """Rendered markdown preview of the generated paper."""
+    nl()
+    console.print(Panel(
+        Markdown(preview),
+        title=f"[bold {T.SECONDARY}]RESEARCH PAPER  •  {word_count:,} WORDS  •  {sections} SECTIONS[/]",
+        border_style=T.DIM,
+        padding=(1, 2),
+    ))
+
+
+def outputs_table(files: list):
+    """
+    Replaces the bare numbered list with a scannable table.
+    Each dict: { name, size_kb, date, kind }
+    """
+    table = Table(
+        box=box.SIMPLE,
+        show_header=True,
+        header_style=f"bold {T.MUTED}",
+        border_style=T.DIM,
+        padding=(0, 1),
+        expand=False,
+    )
+    table.add_column("#", style=T.DIM, width=3)
+    table.add_column("FILE", style=T.TEXT)
+    table.add_column("TYPE", style=T.MUTED, width=8)
+    table.add_column("SIZE", style=T.MUTED, justify="right", width=7)
+    table.add_column("DATE", style=T.DIM, width=12)
+
+    for i, f in enumerate(files, 1):
+        kind_color = T.INFO if f["kind"] == "paper" else T.SECONDARY
+        table.add_row(
+            str(i),
+            f["name"],
+            Text(f["kind"], style=kind_color),
+            f"{f['size_kb']} KB",
+            f["date"],
+        )
+
+    nl()
+    console.print(table)
+    nl()
+
+
+def vault_status(docs: list):
+    """Show each loaded document with atom/triple counts."""
+    nl()
+    for doc in docs:
+        line = Text()
+        line.append("  ✓ ", style=f"bold {T.SUCCESS}")
+        line.append(doc["name"], style=f"bold {T.TEXT}")
+        line.append(f"  {doc.get('atoms', 0)} atoms", style=T.MUTED)
+        line.append("  ·", style=T.DIM)
+        line.append(f"  {doc.get('triples', 0)} triples", style=T.DIM)
+        console.print(line)
+
+    count = len(docs)
+    console.print(Text(
+        f"\n  Vault ready  ·  {count} document{'s' if count != 1 else ''}  "
+        f"·  Use /query or /paper to begin",
+        style=T.MUTED,
+    ))
+    nl()
+
+
+def help_table():
+    table = Table(box=None, show_header=False, padding=(0, 2, 0, 0))
+    table.add_column(style=f"bold {T.SECONDARY}", width=28)
+    table.add_column(style=T.MUTED)
+
+    rows = [
+        ("/index <path.pdf>",       "Index a single PDF into the vault"),
+        ("/vault <p1.pdf> ...",     "Load multiple PDFs at once"),
+        ("/query <question>",       "Ask a question across vault documents"),
+        ("/paper <topic>",          "Generate a full research paper"),
+        ("/guide <topic>",          "Generate a masters-level implementation guide"),
+        ("/outputs",                "Browse all generated files"),
+        ("/venue <name>",           "Set publication venue  (IEEE / DSJ / Elsevier …)"),
+        ("/type <name>",            "Set document type  (research_article / review …)"),
+        ("/level <level>",          "Set researcher level  (beginner / masters / phd)"),
+        ("/status",                 "Show loaded document stats"),
+        ("/tree",                   "Show PageIndex tree structure"),
+        ("/history",                "Show recent query history"),
+        ("/models",                 "Show active LLM routing table"),
+        ("/clear",                  "Clear the screen"),
+        ("/exit",                   "Quit VASIS AI"),
+        ("",                        ""),
+        ("Anything without /",      "Treated as a natural-language /query"),
+    ]
+
+    nl()
+    for cmd, desc in rows:
+        table.add_row(cmd, desc)
+    console.print(table)
+    nl()
+
+
+def models_table(routing: list):
+    """Show the LLM routing table."""
+    table = Table(
+        box=box.SIMPLE, show_header=True,
+        header_style=f"bold {T.MUTED}", border_style=T.DIM,
+        padding=(0, 1),
+    )
+    table.add_column("Role", style=T.TEXT)
+    table.add_column("Model", style=T.SECONDARY)
+    table.add_column("Task", style=T.MUTED)
+
+    for row in routing:
+        table.add_row(row["role"], row["model"], row["task"])
+
+    nl()
+    console.print(table)
+    nl()
+
+
+# =============================================================================
+# BANNER
+# =============================================================================
+
+def print_banner(venue: str, doc_type: str, model: str):
+    PURPLE      = "#7C3AED"
+    PURPLE_LIGHT = "#A78BFA"
+
+    nl()
+
+    # ── ASCII Art — VASIS ─────────────────────────────────────────────────────
+    logo_lines = [
+        r"  ██╗   ██╗ █████╗  ███████╗ ██╗ ███████╗",
+        r"  ██║   ██║██╔══██╗ ██╔════╝ ██║ ██╔════╝",
+        r"  ██║   ██║███████║ ███████╗ ██║ ███████╗",
+        r"  ╚██╗ ██╔╝██╔══██║ ╚════██║ ██║ ╚════██║",
+        r"   ╚████╔╝ ██║  ██║ ███████║ ██║ ███████║",
+        r"    ╚═══╝  ╚═╝  ╚═╝ ╚══════╝ ╚═╝ ╚══════╝",
+    ]
+    for line in logo_lines:
+        console.print(Text(line, style=f"bold {PURPLE}"))
+
+    # ── Subtitle ──────────────────────────────────────────────────────────────
+    nl()
+    subtitle = Text()
+    subtitle.append("                   V A S I S   A I   A G E N T S", style=f"bold {PURPLE_LIGHT}")
+    console.print(subtitle)
+    nl()
+
+    # ── Tagline ───────────────────────────────────────────────────────────────
+    tag = Text()
+    tag.append("  14-Agent Consensus Intelligence Engine", style=f"bold {PURPLE_LIGHT}")
+    console.print(tag)
+
+    # ── Session meta ──────────────────────────────────────────────────────────
+    meta = Text()
+    meta.append(f"  Session started {datetime.now().strftime('%Y-%m-%d %H:%M')}  ", style=T.MUTED)
+    meta.append(f"Venue={venue}  Type={doc_type}  Model={model}", style=T.DIM)
+    console.print(meta)
+    nl()
+
+    # ── Quick-start hint ──────────────────────────────────────────────────────
+    hint = Text()
+    hint.append("  /index path/to/paper.pdf", style=T.SECONDARY)
+    hint.append("  to load a document  ·  ", style=T.DIM)
+    hint.append("/help", style=T.SECONDARY)
+    hint.append("  for all commands", style=T.DIM)
+    console.print(hint)
+    nl()
+
+
+# =============================================================================
+# PROMPT  (prompt_toolkit)
+# =============================================================================
+
+COMMANDS = [
+    "/index", "/vault", "/query", "/paper", "/guide",
+    "/outputs", "/venue", "/type", "/level",
+    "/status", "/tree", "/history",
+    "/models", "/clear", "/help", "/exit",
+]
+
+_pt_style = Style.from_dict({
+    "prompt":                          f"bold {T.PRIMARY}",
+    "completion-menu.completion":      f"bg:{T.DIM} {T.TEXT}",
+    "completion-menu.completion.current": f"bg:{T.PRIMARY} white",
+    "completion-menu.meta.completion":    T.MUTED,
+    "auto-suggestion":                    T.DIM,
+})
+
+def _make_session() -> PromptSession:
+    completer = WordCompleter(COMMANDS, ignore_case=True, sentence=True)
+    history_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".vasis_history")
+    return PromptSession(
+        completer=completer,
+        style=_pt_style,
+        auto_suggest=AutoSuggestFromHistory(),
+        history=FileHistory(history_path),
+        complete_while_typing=True,
+    )
+
+def _prompt_text():
+    return HTML("<ansi_bright_magenta><b>❯</b></ansi_bright_magenta> ")
+
+
+# =============================================================================
+# MAIN CLI
+# =============================================================================
+
+class VasisCLI:
+    """
+    Interactive terminal UI for VASIS AI.
+    All dispatch methods call the real VASIS backend.
+    """
+
+    VENUES = ["IEEE", "DSJ", "Elsevier", "Springer", "ACM", "NeurIPS", "ICML", "ICLR"]
+    ARTICLE_TYPES = [
+        "research_article", "review_article", "systematic_review",
+        "short_communication", "perspective_article", "technical_note",
+        "case_study", "letter_to_editor"
+    ]
+    RESEARCHER_LEVELS = ["beginner", "masters", "phd"]
+
+    def __init__(
+        self,
+        venue: str = "IEEE",
+        doc_type: str = "research_article",
+        level: str = "masters",
+        outputs_dir: str = "outputs",
+    ):
+        self.venue = venue
+        self.doc_type = doc_type
+        self.level = level
+        self.outputs_dir = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), outputs_dir))
+        self.vault_docs: list = []
+        self.session = _make_session()
+
+        # Backend state
+        self.rag = None              # PageIndexREMSE instance (single-paper mode)
+        self._vault_session = None   # VaultSession instance (multi-paper mode)
+
+    # ── Public entry point ────────────────────────────────────────────────────
+
+    def run(self):
+        model_str = f"{AGENT_MODEL} / {REASONING_MODEL}"
+        print_banner(self.venue, self.doc_type, model_str)
+        while True:
+            try:
+                raw = self.session.prompt(_prompt_text()).strip()
+            except KeyboardInterrupt:
+                console.print(Text(f"\n  Use /exit to quit.", style=T.MUTED))
+                continue
+            except EOFError:
+                self._cmd_exit()
+
+            if not raw:
+                continue
+
+            if raw.startswith("/"):
+                self._dispatch_command(raw)
+            else:
+                # Natural language → treat as query
+                self._dispatch_query(raw)
+
+    # ── Command dispatcher ────────────────────────────────────────────────────
+
+    def _dispatch_command(self, raw: str):
+        parts = raw.split(maxsplit=1)
+        cmd  = parts[0].lower()
+        args = parts[1].strip() if len(parts) > 1 else ""
+
+        dispatch = {
+            "/index":   lambda: self._cmd_index(args),
+            "/vault":   lambda: self._cmd_vault(args),
+            "/query":   lambda: self._dispatch_query(args),
+            "/paper":   lambda: self._cmd_paper(args),
+            "/guide":   lambda: self._cmd_guide(args),
+            "/outputs": lambda: self._cmd_outputs(),
+            "/venue":   lambda: self._cmd_venue(args),
+            "/type":    lambda: self._cmd_type(args),
+            "/level":   lambda: self._cmd_level(args),
+            "/status":  lambda: self._cmd_status(),
+            "/tree":    lambda: self._cmd_tree(),
+            "/history": lambda: self._cmd_history(),
+            "/models":  lambda: self._cmd_models(),
+            "/clear":   lambda: self._cmd_clear(),
+            "/help":    lambda: help_table(),
+            "/exit":    lambda: self._cmd_exit(),
+            "/quit":    lambda: self._cmd_exit(),
+        }
+
+        fn = dispatch.get(cmd)
+        if fn:
+            fn()
+        else:
+            error_line(f"Unknown command '{cmd}'.  Type /help for the list.")
+
+    # ── Commands ──────────────────────────────────────────────────────────────
+
+    def _cmd_index(self, path: str):
+        if not path:
+            error_line("Usage: /index path/to/document.pdf")
+            return
+
+        # Strip quotes the user may have typed
+        path = path.strip('"').strip("'")
+
+        if not os.path.exists(path):
+            error_line(f"File not found: {path}")
+            return
+
+        self._load_single(path)
+        # After loading, show vault summary
+        if self.vault_docs:
+            vault_status(self.vault_docs)
+
+    def _cmd_vault(self, args: str):
+        # Parse paths, handling quoted strings
+        paths = []
+        for token in re.findall(r'(?:[^\s"\']+|"[^"]*"|\'[^\']*\')+', args):
+            paths.append(token.strip('"').strip("'"))
+
+        if not paths:
+            error_line("Usage: /vault file1.pdf file2.pdf ...")
+            return
+
+        # Reset for a fresh vault session
+        self.vault_docs = []
+        self.rag = None
+        self._vault_session = None
+
+        nl()
+        for p in paths:
+            if not os.path.exists(p):
+                error_line(f"File not found: {p}")
+                continue
+            self._load_single(p)
+
+        vault_status(self.vault_docs)
+
+    def _load_single(self, path: str):
+        fname = Path(path).name
+        with console.status(
+            f"[{T.MUTED}]Indexing {fname}…[/]",
+            spinner="dots",
+            spinner_style=T.PRIMARY,
+        ):
+            result = self._dispatch_index(path)
+
+        if result:
+            self.vault_docs.append(result)
+            tool_line("Indexed", f"{result['name']}  ·  {result['atoms']} atoms")
+
+    def _cmd_paper(self, topic: str):
+        if not topic:
+            error_line("Usage: /paper <topic>")
+            return
+        if not self.rag and not self._vault_session:
+            error_line("Load documents first with /index or /vault")
+            return
+
+        nl()
+        console.print(Text(f"  Writing research paper…", style=T.MUTED))
+        console.print(Text(f"  {topic}", style=f"bold {T.TEXT}"))
+        info_line(f"Venue: {self.venue}  ·  Type: {self.doc_type}")
+        nl()
+
+        result = self._dispatch_paper(topic)
+
+        if not result:
+            return
+
+        # Print per-agent lines
+        if result.get("agents"):
+            divider("Agent pipeline")
+            for ag in result["agents"]:
+                if ag.get("skipped"):
+                    skip_line(ag["name"])
+                else:
+                    agent_line(ag["name"], ag.get("grade", "?"), ag.get("score", 0.0), ag.get("time", 0.0))
+
+        # Grounding banner
+        if result.get("grounding_ratio") is not None:
+            grounding_banner(
+                result["grounding_ratio"],
+                result.get("grounding_tagged", 0),
+                result.get("grounding_total", 0),
+            )
+
+        # Paper preview
+        if result.get("word_count") and result.get("preview"):
+            paper_panel(result["word_count"], result.get("sections", 0), result["preview"])
+
+        # Save confirmation
+        if result.get("output_path"):
+            nl()
+            success_line(f"Saved → {result['output_path']}")
+            nl()
+
+    def _cmd_guide(self, topic: str):
+        if not topic:
+            error_line("Usage: /guide <topic>")
+            return
+        if not self.rag and not self._vault_session:
+            error_line("Load documents first with /index or /vault")
+            return
+
+        nl()
+        console.print(Text(f"  Building implementation guide…", style=T.MUTED))
+        console.print(Text(f"  {topic}", style=f"bold {T.TEXT}"))
+        info_line(f"Level: {self.level}")
+        nl()
+
+        result = self._dispatch_guide(topic)
+
+        if not result:
+            return
+
+        # Show step progress
+        if result.get("steps"):
+            divider(f"Implementation guide  ·  {len(result['steps'])} steps")
+            for step in result["steps"]:
+                tool_line(f"Step {step['n']}/{len(result['steps'])}", step["title"])
+
+        # Save confirmation
+        if result.get("output_path"):
+            nl()
+            success_line(f"Saved → {result['output_path']}")
+            nl()
+
+    def _dispatch_query(self, query: str):
+        if not query:
+            error_line("Usage: /query <question>  (or just type your question)")
+            return
+
+        has_rag = self.rag and self.rag._ready
+        has_vault = self._vault_session is not None
+
+        if not has_rag and not has_vault:
+            error_line("No document loaded. Use /index or /vault first.")
+            return
+
+        nl()
+        with console.status(
+            f"[{T.MUTED}]Thinking…[/]",
+            spinner="dots",
+            spinner_style=T.PRIMARY,
+        ):
+            result = self._dispatch_query_impl(query)
+
+        if not result:
+            return
+
+        nl()
+
+        # Check if it's a vault comparison result
+        if result.get("_type") == "comparison":
+            self._render_comparison(result)
+        elif result.get("_type") == "vault_multi":
+            self._render_vault_multi(result)
+        else:
+            # Single paper result
+            answer = result.get("answer", "")
+            trust = result.get("trust_level", "low").upper()
+            confidence = result.get("confidence", 0.0)
+            grade = result.get("pipeline_grade", "?")
+            elapsed = result.get("elapsed_seconds", 0.0)
+
+            trust_color = {"HIGH": T.SUCCESS, "MEDIUM": T.WARNING, "LOW": T.ERROR}.get(trust, T.MUTED)
+
+            header = Text()
+            header.append("  ✓ VASIS RESPONSE", style=f"bold {T.SUCCESS}")
+            header.append(f"   TRUST: {trust}", style=f"bold {trust_color}")
+            header.append(f"  conf={confidence:.2f}  grade={grade}  {elapsed:.1f}s", style=T.DIM)
+            console.print(header)
+            nl()
+
+            console.print(Panel(
+                Markdown(answer),
+                border_style=T.DIM,
+                padding=(1, 2),
+            ))
+
+            # Contradictions
+            if result.get("contradictions_found"):
+                nl()
+                console.print(Text("  ⚠ CONTRADICTIONS DETECTED", style=f"bold {T.ERROR}"))
+                for c in result.get("contradiction_details", [])[:3]:
+                    console.print(Text(
+                        f"    [{c.get('severity', '?').upper()}] "
+                        f"{c.get('claim_a', '')}  vs  {c.get('claim_b', '')}",
+                        style=T.WARNING
+                    ))
+
+            # Novel connections
+            if result.get("novel_connections"):
+                nl()
+                console.print(Text(
+                    f"  ⚡ {len(result['novel_connections'])} novel causal connections synthesised",
+                    style=f"bold {T.SUCCESS}"
+                ))
+                for n in result["novel_connections"][:2]:
+                    via = " → ".join(n.get("via", []))
+                    console.print(Text(
+                        f"    {n.get('from', '')} → {via} → {n.get('to', '')}  conf={n.get('confidence', 0):.2f}",
+                        style=T.DIM
+                    ))
+
+            # Auto-save paper/guide outputs
+            self._auto_save_outputs(result, query)
+
+        nl()
+
+    def _render_comparison(self, result: dict):
+        """Render cross-paper comparison result."""
+        console.print(Text("  ✓ VAULT CROSS-PAPER COMPARISON", style=f"bold {T.SUCCESS}"))
+        nl()
+
+        for label, ans in result.get("per_paper_answers", {}).items():
+            console.print(Text(f"  {label}:", style=f"bold {T.INFO}"))
+            for line in ans.split("\n"):
+                if line.strip():
+                    console.print(Text(f"    {line}", style=T.TEXT))
+            nl()
+
+        if result.get("structural_conflict_found"):
+            console.print(Panel(
+                Text("⚠ STRUCTURAL CONTRADICTIONS DETECTED", style=f"bold {T.ERROR}"),
+                border_style="red",
+                padding=(0, 2),
+            ))
+            for c in result.get("cross_doc_conflicts", []):
+                console.print(Text(
+                    f"    {c.get('subject', '')} — {c.get('relation', '')}",
+                    style=T.WARNING
+                ))
+                for doc, obj in c.get("per_document", {}).items():
+                    console.print(Text(f"      [{doc}] → {obj}", style=T.DIM))
+            for c in result.get("triple_conflicts", []):
+                console.print(Text(
+                    f"    {c.get('subject', '')} — {c.get('relation', '')}: {c.get('conflicting_objects', '')}",
+                    style=T.WARNING
+                ))
+        else:
+            score = result.get("consistency_score", 1.0)
+            success_line(f"Consistency Check: No structural conflicts.  Score: {score:.2f}")
+
+        if result.get("llm_contradictions"):
+            nl()
+            console.print(Text("  Logical inconsistencies flagged:", style=f"bold {T.WARNING}"))
+            for c in result.get("llm_contradictions", []):
+                console.print(Text(
+                    f"    • {c.get('claim_a', '')}  vs  {c.get('claim_b', '')}  ({c.get('severity', 'low')})",
+                    style=T.DIM
+                ))
+
+        if result.get("narrative_debates"):
+            nl()
+            console.print(Text("  Narrative-level debates:", style=f"bold {T.SECONDARY}"))
+            for d in result.get("narrative_debates", []):
+                console.print(Text(f"    {d.get('debate_topic', 'Untitled')}", style=f"bold {T.TEXT}"))
+                console.print(Text(f"      Side A: {d.get('side_a', '')}", style=T.DIM))
+                console.print(Text(f"      Side B: {d.get('side_b', '')}", style=T.DIM))
+
+    def _render_vault_multi(self, result: dict):
+        """Render vault independent papers response."""
+        console.print(Text("  ✓ VAULT INDEPENDENT PAPERS RESPONSE", style=f"bold {T.SUCCESS}"))
+        nl()
+
+        for label, r in result.get("per_paper", {}).items():
+            console.print(Text(f"  ● {label}", style=f"bold {T.SUCCESS}"))
+            ans = r.get("answer", "")
+            for line in ans.split("\n"):
+                if line.strip():
+                    console.print(Text(f"    {line}", style=T.TEXT))
+            nl()
+
+    def _auto_save_outputs(self, result: dict, query: str):
+        """Auto-save paper/guide outputs from a query result."""
+        try:
+            from main import _save_agent_output
+
+            paper_result = result.get("paper_result")
+            impl_result  = result.get("impl_result")
+
+            if paper_result and paper_result.get("full_text"):
+                path = _save_agent_output(
+                    content=paper_result["full_text"],
+                    agent_name="paper",
+                    topic=query,
+                    venue=self.venue,
+                    article_type=self.doc_type,
+                )
+                success_line(f"Paper saved → {path}")
+
+            if impl_result and impl_result.get("full_text"):
+                path = _save_agent_output(
+                    content=impl_result["full_text"],
+                    agent_name="guide",
+                    topic=query,
+                    researcher_level=self.level,
+                )
+                success_line(f"Guide saved → {path}")
+        except Exception:
+            pass  # Don't crash the CLI if auto-save fails
+
+    def _cmd_outputs(self):
+        files = self._dispatch_list_outputs()
+        if not files:
+            info_line("No outputs yet.  Use /paper or /guide to generate files.")
+            nl()
+            return
+        outputs_table(files)
+
+    def _cmd_venue(self, v: str):
+        if not v:
+            info_line(f"Current venue: {self.venue}")
+            return
+        v_upper = v.strip().upper()
+        valid = [ven.upper() for ven in self.VENUES]
+        if v_upper in valid:
+            matched = next((ven for ven in self.VENUES if ven.upper() == v_upper), v)
+            self.venue = matched
+            success_line(f"Venue → {self.venue}")
+        else:
+            error_line(f"Unknown venue '{v}'.  Available: {', '.join(self.VENUES)}")
+
+    def _cmd_type(self, t: str):
+        if not t:
+            info_line(f"Current type: {self.doc_type}")
+            return
+        t_lower = t.strip().lower()
+        if t_lower in self.ARTICLE_TYPES:
+            self.doc_type = t_lower
+            success_line(f"Type → {self.doc_type}")
+        else:
+            error_line(f"Unknown type '{t}'.  Available: {', '.join(self.ARTICLE_TYPES)}")
+
+    def _cmd_level(self, lvl: str):
+        if not lvl:
+            info_line(f"Current level: {self.level}")
+            return
+        lvl_lower = lvl.strip().lower()
+        if lvl_lower in self.RESEARCHER_LEVELS:
+            self.level = lvl_lower
+            success_line(f"Level → {self.level}")
+        else:
+            error_line(f"Unknown level '{lvl}'.  Available: {', '.join(self.RESEARCHER_LEVELS)}")
+
+    def _cmd_status(self):
+        if self._vault_session is not None:
+            nl()
+            console.print(Text("  VAULT STATUS", style=f"bold {T.WARNING}"))
+            nl()
+            for s in self._vault_session.stats():
+                line = Text()
+                line.append(f"    {s['label']}: ", style=f"bold {T.INFO}")
+                line.append(f"{s.get('total_atoms', 0)} atoms, ", style=T.TEXT)
+                line.append(f"{s.get('total_triples', 0)} triples, ", style=T.TEXT)
+                line.append(f"{s.get('tree_nodes', 0)} sections", style=T.MUTED)
+                console.print(line)
+            nl()
+            return
+
+        if not self.rag:
+            error_line("No document loaded. Use /index first.")
+            return
+
+        stats = self.rag.get_stats()
+        nl()
+        console.print(Text("  SYSTEM STATUS", style=f"bold {T.WARNING}"))
+        nl()
+        for k, v in stats.items():
+            line = Text()
+            line.append(f"    {k:<20}", style=f"bold {T.INFO}")
+            line.append(f"  {v}", style=T.TEXT)
+            console.print(line)
+        nl()
+
+    def _cmd_tree(self):
+        if not self.rag or not self.rag._ready:
+            error_line("No single document loaded.")
+            return
+
+        nl()
+        info_line("PageIndex tree structure:")
+        nl()
+        for node in self.rag.tree_nodes[:40]:
+            depth = node.get("depth", 0)
+            indent = "  " * depth
+            title_text = node.get("title", "Untitled")
+            pages = node.get("pages", node.get("start_page", "?"))
+            console.print(Text(
+                f"    {indent}└─ {title_text}  (p.{pages})",
+                style=T.INFO
+            ))
+        if len(self.rag.tree_nodes) > 40:
+            info_line(f"... and {len(self.rag.tree_nodes) - 40} more nodes")
+        nl()
+
+    def _cmd_history(self):
+        if not self.rag:
+            error_line("No single document loaded.")
+            return
+        try:
+            from storage.store import load_query_log
+            log = load_query_log(self.rag.doc_id)
+            if not log:
+                info_line("No query history found for this document.")
+                return
+            nl()
+            console.print(Text("  QUERY HISTORY", style=f"bold {T.WARNING}"))
+            nl()
+            for i, entry in enumerate(log[-10:], 1):
+                console.print(Text(f"    {i}. [{entry.get('timestamp', '?')}]", style=f"bold {T.TEXT}"))
+                console.print(Text(f"       Q: {entry['query']}", style=T.INFO))
+                answer_preview = entry.get('answer', '')[:120].replace('\n', ' ')
+                console.print(Text(f"       A: {answer_preview}…", style=T.DIM))
+            nl()
+        except Exception as e:
+            error_line(f"Could not load history: {e}")
+
+    def _cmd_models(self):
+        routing = [
+            {"role": "Router / JSON tasks",  "model": AGENT_MODEL,     "task": "generate_json"},
+            {"role": "Answer generation",    "model": REASONING_MODEL, "task": "generate"},
+            {"role": "Paper Writer",         "model": REASONING_MODEL, "task": "generate"},
+            {"role": "Impl. Guide",          "model": REASONING_MODEL, "task": "generate"},
+        ]
+        models_table(routing)
+
+    def _cmd_clear(self):
+        console.clear()
+        model_str = f"{AGENT_MODEL} / {REASONING_MODEL}"
+        print_banner(self.venue, self.doc_type, model_str)
+
+    def _cmd_exit(self):
+        nl()
+        console.print(Text("  Goodbye.", style=T.MUTED))
+        nl()
+        sys.exit(0)
+
+    # =========================================================================
+    # BACKEND DISPATCH — real agent calls
+    # =========================================================================
+
+    def _dispatch_index(self, path: str) -> Optional[dict]:
+        """
+        Index a single PDF using PageIndexREMSE.
+        Returns: { name, atoms, triples, doc_id } or None on error.
+        """
+        try:
+            from pipeline import PageIndexREMSE
+
+            if self._vault_session is None and len(self.vault_docs) == 0:
+                # Single-paper mode: use PageIndexREMSE directly
+                rag = PageIndexREMSE(model=DEFAULT_MODEL)
+                rag.ingest(path)
+                self.rag = rag
+                stats = rag.get_stats()
+                return {
+                    "name":    Path(path).stem,
+                    "atoms":   stats.get("total_atoms", 0),
+                    "triples": stats.get("total_triples", 0),
+                    "doc_id":  rag.doc_id,
+                }
+            else:
+                # Multi-paper / vault mode
+                from vault import VaultSession
+                if self._vault_session is None:
+                    self._vault_session = VaultSession(model=DEFAULT_MODEL)
+                    # If we already had a single rag, load it into vault
+                    # by re-loading the first document
+                    self.rag = None
+
+                label = self._vault_session.load(path)
+                rag_instance = self._vault_session.papers[label]
+                stats = rag_instance.get_stats()
+                return {
+                    "name":    label,
+                    "atoms":   stats.get("total_atoms", 0),
+                    "triples": stats.get("total_triples", 0),
+                    "doc_id":  rag_instance.doc_id,
+                }
+
+        except Exception as e:
+            error_line(f"Indexing failed: {e}")
+            import traceback
+            console.print(Text(traceback.format_exc(), style=T.DIM))
+            return None
+
+    def _dispatch_paper(self, topic: str) -> Optional[dict]:
+        """
+        Run the paper writing pipeline (Agent 13).
+        Returns dict with agents, grounding info, preview, output_path.
+        """
+        try:
+            has_vault = self._vault_session is not None
+
+            if has_vault:
+                # Vault mode: query all papers with paper intent
+                with console.status(
+                    f"[{T.MUTED}]Running 14-agent pipeline…[/]",
+                    spinner="dots",
+                    spinner_style=T.PRIMARY,
+                ):
+                    results = self._vault_session.ask_all(
+                        f"write a research paper on {topic}",
+                        venue=self.venue,
+                        article_type=self.doc_type,
+                        target_paper="all"
+                    )
+
+                # Aggregate results from all papers
+                combined_text = ""
+                for label, r in results.items():
+                    paper_result = r.get("paper_result")
+                    if paper_result and paper_result.get("full_text"):
+                        combined_text = paper_result["full_text"]
+                        # Save each paper
+                        from main import _save_agent_output
+                        path = _save_agent_output(
+                            content=paper_result["full_text"],
+                            agent_name="paper",
+                            topic=f"{label}_{topic}",
+                            venue=self.venue,
+                            article_type=self.doc_type,
+                        )
+                        success_line(f"[{label}] Paper saved → {path}")
+
+                # Build agent status from the first paper's review report
+                first_result = next(iter(results.values()), {})
+                agents = self._extract_agent_status(first_result)
+                audit = first_result.get("paper_result", {}).get("audit", {}) if first_result.get("paper_result") else {}
+
+                return {
+                    "agents": agents,
+                    "word_count": len(combined_text.split()) if combined_text else 0,
+                    "sections": combined_text.count("\n## ") if combined_text else 0,
+                    "preview": self._extract_preview(combined_text),
+                    "grounding_ratio": audit.get("grounding_ratio", None),
+                    "grounding_tagged": audit.get("grounded_sentences", 0),
+                    "grounding_total": audit.get("total_sentences", 0),
+                    "output_path": None,  # Already saved above
+                }
+
+            else:
+                # Single-paper mode
+                with console.status(
+                    f"[{T.MUTED}]Running 14-agent pipeline…[/]",
+                    spinner="dots",
+                    spinner_style=T.PRIMARY,
+                ):
+                    result = self.rag.query(
+                        f"write a research paper on {topic}",
+                        show_provenance=False,
+                        venue=self.venue,
+                        article_type=self.doc_type
+                    )
+
+                agents = self._extract_agent_status(result)
+                paper = result.get("paper_result")
+                output_path = None
+
+                if paper and paper.get("full_text"):
+                    from main import _save_agent_output
+                    output_path = _save_agent_output(
+                        content=paper["full_text"],
+                        agent_name="paper",
+                        topic=topic,
+                        venue=self.venue,
+                        article_type=self.doc_type,
+                    )
+
+                audit = paper.get("audit", {}) if paper else {}
+                full_text = paper.get("full_text", "") if paper else ""
+
+                return {
+                    "agents": agents,
+                    "word_count": paper.get("word_count", len(full_text.split())) if paper else 0,
+                    "sections": len(paper.get("sections", {})) if paper else 0,
+                    "preview": self._extract_preview(full_text),
+                    "grounding_ratio": audit.get("grounding_ratio", None),
+                    "grounding_tagged": audit.get("grounded_sentences", 0),
+                    "grounding_total": audit.get("total_sentences", 0),
+                    "output_path": output_path,
+                }
+
+        except Exception as e:
+            error_line(f"Paper generation failed: {e}")
+            import traceback
+            console.print(Text(traceback.format_exc(), style=T.DIM))
+            return None
+
+    def _dispatch_guide(self, topic: str) -> Optional[dict]:
+        """
+        Run the implementation guide pipeline (Agent 14).
+        Returns dict with steps and output_path.
+        """
+        try:
+            has_vault = self._vault_session is not None
+
+            if has_vault:
+                with console.status(
+                    f"[{T.MUTED}]Running 14-agent pipeline…[/]",
+                    spinner="dots",
+                    spinner_style=T.PRIMARY,
+                ):
+                    results = self._vault_session.ask_all(
+                        f"write an implementation guide for {topic}",
+                        researcher_level=self.level,
+                        target_paper="all"
+                    )
+
+                output_path = None
+                for label, r in results.items():
+                    impl_result = r.get("impl_result")
+                    if impl_result and impl_result.get("full_text"):
+                        from main import _save_agent_output
+                        output_path = _save_agent_output(
+                            content=impl_result["full_text"],
+                            agent_name="guide",
+                            topic=f"{label}_{topic}",
+                            researcher_level=self.level,
+                        )
+                        success_line(f"[{label}] Guide saved → {output_path}")
+
+                # Extract steps from the first result's guide
+                first_result = next(iter(results.values()), {})
+                steps = self._extract_guide_steps(first_result)
+
+                return {
+                    "steps": steps,
+                    "output_path": output_path,
+                }
+
+            else:
+                with console.status(
+                    f"[{T.MUTED}]Running 14-agent pipeline…[/]",
+                    spinner="dots",
+                    spinner_style=T.PRIMARY,
+                ):
+                    result = self.rag.query(
+                        f"write an implementation guide for {topic}",
+                        show_provenance=False,
+                        researcher_level=self.level
+                    )
+
+                output_path = None
+                guide = result.get("impl_result")
+                if guide and guide.get("full_text"):
+                    from main import _save_agent_output
+                    output_path = _save_agent_output(
+                        content=guide["full_text"],
+                        agent_name="guide",
+                        topic=topic,
+                        researcher_level=self.level,
+                    )
+
+                steps = self._extract_guide_steps(result)
+
+                return {
+                    "steps": steps,
+                    "output_path": output_path,
+                }
+
+        except Exception as e:
+            error_line(f"Guide generation failed: {e}")
+            import traceback
+            console.print(Text(traceback.format_exc(), style=T.DIM))
+            return None
+
+    def _dispatch_query_impl(self, query: str) -> Optional[dict]:
+        """
+        Run the multi-agent query pipeline.
+        Returns dict with answer, sources, metadata.
+        """
+        try:
+            has_vault = self._vault_session is not None
+            has_rag = self.rag and self.rag._ready
+
+            if has_vault:
+                from vault import is_comparison_question
+
+                # Check for paper / guide intent
+                q_lower = query.lower()
+                is_paper = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
+                is_guide = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
+
+                venue = self.venue if is_paper else None
+                article_type = self.doc_type if is_paper else None
+                researcher_level = self.level if is_guide else None
+
+                if is_comparison_question(query):
+                    result = self._vault_session.compare(
+                        query,
+                        venue=venue,
+                        article_type=article_type,
+                        researcher_level=researcher_level,
+                        target_paper="all"
+                    )
+                    result["_type"] = "comparison"
+                    return result
+                else:
+                    results = self._vault_session.ask_all(
+                        query,
+                        venue=venue,
+                        article_type=article_type,
+                        researcher_level=researcher_level,
+                        target_paper="all"
+                    )
+                    # If only one paper, render as single result
+                    if len(results) == 1:
+                        label, r = next(iter(results.items()))
+                        return r
+                    else:
+                        return {
+                            "_type": "vault_multi",
+                            "per_paper": results,
+                        }
+            elif has_rag:
+                # Detect paper/guide intent for single-paper mode
+                q_lower = query.lower()
+                is_paper = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("paper_writing", []))
+                is_guide = any(pat in q_lower for pat in QUERY_DETECTION_PATTERNS.get("implementation_guide", []))
+
+                venue = self.venue if is_paper else None
+                article_type = self.doc_type if is_paper else None
+                researcher_level = self.level if is_guide else None
+
+                result = self.rag.query(
+                    query,
+                    top_k_anchors=5,
+                    expansion_passes=4,
+                    show_provenance=False,
+                    save_result=True,
+                    venue=venue,
+                    article_type=article_type,
+                    researcher_level=researcher_level
+                )
+                return result
+
+            return None
+
+        except Exception as e:
+            error_line(f"Query failed: {e}")
+            import traceback
+            console.print(Text(traceback.format_exc(), style=T.DIM))
+            return None
+
+    def _dispatch_list_outputs(self) -> list:
+        """
+        Scan the outputs directory and return file metadata.
+        Each dict: { name, kind, size_kb, date }
+        """
+        result = []
+        if self.outputs_dir.exists():
+            md_files = sorted(self.outputs_dir.glob("*.md"), key=lambda f: f.stat().st_mtime, reverse=True)
+            for f in md_files[:20]:
+                kind = "paper" if f.name.startswith("paper") else "guide"
+                stat = f.stat()
+                result.append({
+                    "name":    f.name,
+                    "kind":    kind,
+                    "size_kb": round(stat.st_size / 1024),
+                    "date":    datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d"),
+                })
+        return result
+
+    # =========================================================================
+    # HELPERS — extract structured data from pipeline results
+    # =========================================================================
+
+    def _extract_agent_status(self, result: dict) -> list:
+        """
+        Extract per-agent grade/score/time from a pipeline result.
+        Uses the review_report.per_agent_scores if available.
+        """
+        agents = []
+
+        # Try to get from the review report embedded in the result
+        review_report = result.get("review_report") or result.get("provenance", {})
+
+        # The per_agent_scores are embedded via SuperAgent._report()
+        # They come through in the reasoning trail
+        per_agent = []
+        if isinstance(review_report, dict):
+            per_agent = review_report.get("per_agent_scores", [])
+
+        if per_agent:
+            # Map agent names to AGENTS dict for display
+            agent_name_map = {
+                "agent1_router": (1, "Router"),
+                "agent2_decomposer": (2, "Decomposer"),
+                "agent3_navigator": (3, "Navigator"),
+                "agent4_retrieval": (4, "Retrieval"),
+                "agent5_expansion": (5, "Expansion"),
+                "agent6_validation": (6, "Validation"),
+                "agent7_contradiction": (7, "Contradiction"),
+                "agent8_temporal": (8, "Temporal"),
+                "agent9_calibration": (9, "Calibration"),
+                "agent10_super": (10, "Supervisor"),
+                "agent11_synthesis": (11, "Synthesis"),
+                "agent12_websearch": (12, "Web Search"),
+                "agent13_paper_writer": (13, "Paper Writer"),
+                "agent14_implementation_guide": (14, "Impl. Guide"),
+            }
+            for a in per_agent:
+                name_key = a.get("agent", "")
+                agent_id, display_name = agent_name_map.get(name_key, (0, name_key))
+                agents.append({
+                    "id": agent_id,
+                    "name": display_name,
+                    "grade": a.get("grade", "?"),
+                    "score": float(a.get("score", 0.0)),
+                    "time": float(a.get("elapsed", 0.0)),
+                    "skipped": a.get("skipped", False),
+                })
+
+        return agents
+
+    def _extract_preview(self, full_text: str) -> str:
+        """Extract first ~600 chars of paper text as markdown preview."""
+        if not full_text:
+            return ""
+        # Find Abstract and Introduction sections
+        preview_parts = []
+        lines = full_text.split("\n")
+        in_section = False
+        chars_collected = 0
+        for line in lines:
+            if line.strip().startswith("## "):
+                if chars_collected > 400:
+                    break
+                in_section = True
+                preview_parts.append(line)
+                continue
+            if in_section:
+                preview_parts.append(line)
+                chars_collected += len(line)
+                if chars_collected > 600:
+                    preview_parts.append("…")
+                    break
+
+        return "\n".join(preview_parts) if preview_parts else full_text[:600] + "…"
+
+    def _extract_guide_steps(self, result: dict) -> list:
+        """
+        Extract implementation guide steps from a pipeline result.
+        """
+        impl_result = result.get("impl_result")
+        if not impl_result:
+            return []
+
+        guide = impl_result.get("guide", {})
+        timings = impl_result.get("timings", {})
+
+        step_titles = [
+            "Breaking down innovation",
+            "Designing architecture",
+            "Writing pseudocode",
+            "Writing code skeleton",
+            "Recommending datasets",
+            "Defining baselines",
+            "Defining metrics",
+            "Creating implementation plan",
+            "Listing pitfalls",
+            "Hardware requirements",
+        ]
+
+        steps = []
+        for i, title in enumerate(step_titles):
+            steps.append({"n": i + 1, "title": title})
+
+        return steps
+
+
+# =============================================================================
+# ENTRY POINT
+# =============================================================================
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="VASIS AI — Interactive CLI Shell")
+    parser.add_argument("--venue",   default="IEEE",             help="Publication venue")
+    parser.add_argument("--type",    default="research_article", help="Document type")
+    parser.add_argument("--level",   default="masters",          help="Guide level")
+    parser.add_argument("--outputs", default="outputs",          help="Outputs directory")
+    args = parser.parse_args()
+
+    VasisCLI(
+        venue=args.venue,
+        doc_type=args.type,
+        level=args.level,
+        outputs_dir=args.outputs,
+    ).run()

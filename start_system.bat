@@ -28,13 +28,12 @@ echo.
 echo       %ESC%[38;5;45m14-Agent Consensus Engine - Control Panel%ESC%[0m
 echo.
 echo %ESC%[38;5;208m================================================================%ESC%[0m
-echo.
-echo   %ESC%[38;5;45m[1]%ESC%[0m %ESC%[1mLaunch Interactive CLI RAG Chat%ESC%[0m     %ESC%[38;5;244m(single PDF)%ESC%[0m
-echo   %ESC%[38;5;45m[2]%ESC%[0m %ESC%[1mIndex a New PDF Document%ESC%[0m            %ESC%[38;5;244m(build causal graph)%ESC%[0m
-echo   %ESC%[38;5;45m[3]%ESC%[0m %ESC%[1mVault Multi-Paper Chat%ESC%[0m              %ESC%[38;5;244m(cross-paper contradictions)%ESC%[0m
+echo   %ESC%[38;5;45m[1]%ESC%[0m %ESC%[1mLaunch Interactive CLI Shell%ESC%[0m          %ESC%[38;5;244m(Rich + Prompt Toolkit - New!)%ESC%[0m
+echo   %ESC%[38;5;45m[2]%ESC%[0m %ESC%[1mLaunch Interactive CLI RAG Chat%ESC%[0m     %ESC%[38;5;244m(single or multi-PDF)%ESC%[0m
+echo   %ESC%[38;5;45m[3]%ESC%[0m %ESC%[1mIndex a New PDF Document%ESC%[0m            %ESC%[38;5;244m(build causal graph)%ESC%[0m
 echo   %ESC%[38;5;45m[4]%ESC%[0m %ESC%[1mList Indexed Documents in Local Vault%ESC%[0m
 echo   %ESC%[38;5;45m[5]%ESC%[0m %ESC%[1mCheck Ollama Local Server Status%ESC%[0m
-echo   %ESC%[38;5;45m[6]%ESC%[0m %ESC%[1mRun Tests%ESC%[0m                           %ESC%[38;5;244m(pytest, 32 tests)%ESC%[0m
+echo   %ESC%[38;5;45m[6]%ESC%[0m %ESC%[1mRun Tests%ESC%[0m                           %ESC%[38;5;244m(pytest, 43 tests)%ESC%[0m
 echo   %ESC%[38;5;45m[7]%ESC%[0m %ESC%[1mLaunch API Server%ESC%[0m                   %ESC%[38;5;244m(FastAPI on port 8000)%ESC%[0m
 echo   %ESC%[38;5;45m[8]%ESC%[0m %ESC%[38;5;196mExit%ESC%[0m
 echo.
@@ -42,14 +41,41 @@ echo %ESC%[38;5;208m------------------------------------------------------------
 echo.
 set /p choice="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mEnter your selection (1-8):%ESC%[0m "
 
-if "%choice%"=="1" goto start_chat
-if "%choice%"=="2" goto index_doc
-if "%choice%"=="3" goto vault_chat
+if "%choice%"=="1" goto start_tui
+if "%choice%"=="2" goto start_chat
+if "%choice%"=="3" goto index_doc
 if "%choice%"=="4" goto list_docs
 if "%choice%"=="5" goto check_ollama
 if "%choice%"=="6" goto run_tests
 if "%choice%"=="7" goto launch_api
 if "%choice%"=="8" goto exit
+goto menu
+
+:start_tui
+cls
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo %ESC%[38;5;208m             LAUNCHING INTERACTIVE CLI SHELL                     %ESC%[0m
+echo %ESC%[38;5;208m================================================================%ESC%[0m
+echo.
+echo   Checking for required packages...
+python -c "import prompt_toolkit" 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo   %ESC%[38;5;220m[WARNING] prompt_toolkit is not installed. Installing it now...%ESC%[0m
+    pip install prompt_toolkit
+)
+python -c "import rich" 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo   %ESC%[38;5;220m[WARNING] rich is not installed. Installing it now...%ESC%[0m
+    pip install rich
+)
+echo.
+echo   Starting Interactive CLI Shell...
+chcp 65001 >nul 2>&1
+set PYTHONIOENCODING=utf-8
+call python vasis_cli.py
+pause
 goto menu
 
 :start_chat
@@ -58,18 +84,80 @@ echo %ESC%[38;5;208m============================================================
 echo %ESC%[38;5;208m             LAUNCHING INTERACTIVE CLI CHAT                     %ESC%[0m
 echo %ESC%[38;5;208m================================================================%ESC%[0m
 echo.
-set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mEnter absolute or relative path of PDF:%ESC%[0m "
+echo   Load 1 or more PDFs into the session. Ask questions about
+echo   any paper, or cross-paper comparisons with 2+ papers loaded.
+echo.
+echo   %ESC%[38;5;244mEnter ONE PDF path per line. Type DONE when finished (max 6).%ESC%[0m
+echo   %ESC%[38;5;244mDo NOT add quotes - paths with spaces work automatically.%ESC%[0m
+echo.
+set "pdf_count=0"
+set "pdf1="
+set "pdf2="
+set "pdf3="
+set "pdf4="
+set "pdf5="
+set "pdf6="
+
+:chat_add_pdf
+set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mPDF path (or DONE to start):%ESC%[0m "
+:: Strip any surrounding quotes the user may have typed
 set "pdf=%pdf:"=%"
+:: Blank input - ignore and re-prompt
+if "%pdf%"=="" goto chat_add_pdf
+:: Done - launch chat
+if /i "%pdf%"=="done" goto chat_run
+:: Already at max papers
+if %pdf_count% GEQ 6 (
+    echo.
+    echo   %ESC%[38;5;196m[ERROR] Maximum 6 PDFs supported. Type DONE to start.%ESC%[0m
+    echo.
+    goto chat_add_pdf
+)
+:: Validate file exists
 if not exist "%pdf%" (
     echo.
-    echo   %ESC%[38;5;196m[ERROR] File "%pdf%" does not exist! Please check the path.%ESC%[0m
+    echo   %ESC%[38;5;196m[ERROR] File not found: "%pdf%"%ESC%[0m
+    echo   %ESC%[38;5;244mCheck the path and try again - no quotes needed.%ESC%[0m
+    echo.
+    goto chat_add_pdf
+)
+:: Store in numbered variable
+set /a pdf_count+=1
+if %pdf_count%==1 set "pdf1=%pdf%"
+if %pdf_count%==2 set "pdf2=%pdf%"
+if %pdf_count%==3 set "pdf3=%pdf%"
+if %pdf_count%==4 set "pdf4=%pdf%"
+if %pdf_count%==5 set "pdf5=%pdf%"
+if %pdf_count%==6 set "pdf6=%pdf%"
+echo   %ESC%[38;5;82m[OK]%ESC%[0m Paper %pdf_count% added.
+echo.
+goto chat_add_pdf
+
+:chat_run
+if %pdf_count% LSS 1 (
+    echo.
+    echo   %ESC%[38;5;196m[ERROR] Please enter at least one PDF path before typing DONE.%ESC%[0m
     echo.
     pause
     goto menu
 )
-call python main.py chat "%pdf%"
+echo.
+if %pdf_count%==1 (
+    echo   %ESC%[38;5;45mStarting Interactive Chat with 1 paper...%ESC%[0m
+    echo.
+    call python main.py chat "%pdf1%"
+) else (
+    echo   %ESC%[38;5;45mStarting Vault with %pdf_count% papers...%ESC%[0m
+    echo.
+    if %pdf_count%==2 call python main.py vault "%pdf1%" "%pdf2%"
+    if %pdf_count%==3 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%"
+    if %pdf_count%==4 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%"
+    if %pdf_count%==5 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%"
+    if %pdf_count%==6 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%" "%pdf6%"
+)
 pause
 goto menu
+
 
 :index_doc
 cls
@@ -87,80 +175,6 @@ if not exist "%pdf%" (
     goto menu
 )
 call python main.py index "%pdf%" --show-tree
-pause
-goto menu
-
-:vault_chat
-cls
-echo %ESC%[38;5;208m================================================================%ESC%[0m
-echo %ESC%[38;5;208m       VAULT MODE - MULTI-PAPER CROSS-DOCUMENT CHAT            %ESC%[0m
-echo %ESC%[38;5;208m================================================================%ESC%[0m
-echo.
-echo   Load 2+ PDFs into one session. Ask cross-paper questions
-echo   like "Do these papers contradict each other on accuracy?"
-echo.
-echo   %ESC%[38;5;244mEnter ONE PDF path per line. Type DONE when finished (max 6).%ESC%[0m
-echo   %ESC%[38;5;244mDo NOT add quotes - paths with spaces work automatically.%ESC%[0m
-echo.
-set "pdf_count=0"
-set "pdf1="
-set "pdf2="
-set "pdf3="
-set "pdf4="
-set "pdf5="
-set "pdf6="
-
-:vault_add_pdf
-set /p pdf="  %ESC%[38;5;208m^>%ESC%[0m %ESC%[1mPDF path (or DONE to start):%ESC%[0m "
-:: Strip any surrounding quotes the user may have typed
-set "pdf=%pdf:"=%"
-:: Blank input - ignore and re-prompt
-if "%pdf%"=="" goto vault_add_pdf
-:: Done - launch vault
-if /i "%pdf%"=="done" goto vault_run
-:: Already at max papers
-if %pdf_count% GEQ 6 (
-    echo.
-    echo   %ESC%[38;5;196m[ERROR] Maximum 6 PDFs supported. Type DONE to start.%ESC%[0m
-    echo.
-    goto vault_add_pdf
-)
-:: Validate file exists
-if not exist "%pdf%" (
-    echo.
-    echo   %ESC%[38;5;196m[ERROR] File not found: "%pdf%"%ESC%[0m
-    echo   %ESC%[38;5;244mCheck the path and try again - no quotes needed.%ESC%[0m
-    echo.
-    goto vault_add_pdf
-)
-:: Store in numbered variable
-set /a pdf_count+=1
-if %pdf_count%==1 set "pdf1=%pdf%"
-if %pdf_count%==2 set "pdf2=%pdf%"
-if %pdf_count%==3 set "pdf3=%pdf%"
-if %pdf_count%==4 set "pdf4=%pdf%"
-if %pdf_count%==5 set "pdf5=%pdf%"
-if %pdf_count%==6 set "pdf6=%pdf%"
-echo   %ESC%[38;5;82m[OK]%ESC%[0m Paper %pdf_count% added.
-echo.
-goto vault_add_pdf
-
-:vault_run
-if %pdf_count% LSS 2 (
-    echo.
-    echo   %ESC%[38;5;196m[ERROR] Need at least 2 PDFs to use Vault mode!%ESC%[0m
-    echo.
-    pause
-    goto menu
-)
-echo.
-echo   %ESC%[38;5;45mStarting Vault with %pdf_count% paper(s)...%ESC%[0m
-echo.
-if %pdf_count%==2 call python main.py vault "%pdf1%" "%pdf2%"
-if %pdf_count%==3 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%"
-if %pdf_count%==4 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%"
-if %pdf_count%==5 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%"
-if %pdf_count%==6 call python main.py vault "%pdf1%" "%pdf2%" "%pdf3%" "%pdf4%" "%pdf5%" "%pdf6%"
 pause
 goto menu
 

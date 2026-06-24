@@ -12,6 +12,11 @@ try:
     _console = RichConsole()
 
     def print_msg(msg, style=None):
+        import sys
+        if hasattr(sys.stdout, "app"):
+            app = sys.stdout.app
+            app.call_from_thread(app.chat_log.write, msg)
+            return
         try:
             _console.print(msg)
         except UnicodeEncodeError:
@@ -28,6 +33,11 @@ try:
                 pass
 
     def print_panel(content, title=""):
+        import sys
+        if hasattr(sys.stdout, "app"):
+            app = sys.stdout.app
+            app.call_from_thread(app.chat_log.write, Panel(content, title=title, border_style="cyan"))
+            return
         try:
             _console.print(Panel(content, title=title))
         except UnicodeEncodeError:
@@ -57,9 +67,20 @@ except ImportError:
         return re.sub(r'\[/?[^\]]*\]', '', text)
 
     def print_msg(msg, style=None):
+        import sys
+        if hasattr(sys.stdout, "app"):
+            app = sys.stdout.app
+            app.call_from_thread(app.chat_log.write, msg)
+            return
         print(_strip_markup(str(msg)))
 
     def print_panel(content, title=""):
+        import sys
+        if hasattr(sys.stdout, "app"):
+            app = sys.stdout.app
+            clean = _strip_markup(str(content))
+            app.call_from_thread(app.chat_log.write, f"[bold cyan]─── {title} ───[/bold cyan]\n{clean}")
+            return
         clean = _strip_markup(str(content))
         border = "═" * 50
         print(f"\n{border}")

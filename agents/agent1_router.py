@@ -58,18 +58,33 @@ def detect_query_type(query: str) -> str:
     detected = max(scores, key=scores.get)
 
     # Multi-intent detection:
-    # If the user is asking for multiple distinct things (e.g. summary + pros/cons + novelty),
-    # route to deep_research so agent2_decomposer can break it apart.
+    # If the user is asking for multiple distinct things, decide how to route.
     # We ignore bibliography here because asking for references alongside a fact is common and simple.
     intents_detected = [qtype for qtype in scores if qtype != "bibliography"]
     if len(intents_detected) >= 2:
-        detected = "deep_research"
+        has_paper = scores.get("paper_writing", 0) > 0
+        has_impl  = scores.get("implementation_guide", 0) > 0
+
+        if has_paper and has_impl:
+            # Paper + guide combo: route as paper_writing.
+            # agent10_super's is_impl_guide_requested keyword check will
+            # also fire Agent 14 when impl keywords are present under paper_writing.
+            detected = "paper_writing"
+        elif has_paper:
+            # Paper writing requested alongside other intents
+            detected = "paper_writing"
+        elif has_impl:
+            # Implementation guide requested alongside other intents
+            detected = "implementation_guide"
+        else:
+            # Generic multi-intent: deep_research handles decomposition
+            detected = "deep_research"
     else:
-        # Special overrides:
+        # Single-intent special overrides:
         # Bibliography always wins if detected
         if scores.get("bibliography", 0) > 0:
             detected = "bibliography"
-    
+
         # Summary wins over explanation for full-doc queries
         elif (scores.get("summary", 0) > 0 and
                 "this paper" in query_lower):
