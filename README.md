@@ -14,6 +14,7 @@ The system is fully self-contained, requiring zero external APIs, keys, or cloud
 *   **Self-Healing JSON Hardening:** Employs Ollama token grammar schemas and a regex-based healing parser to ensure 100% stable execution.
 *   **Automatic Output Ingestion:** Automatically saves generated papers and implementation guides into clean markdown formats under `outputs/` with timestamped, query-derived filenames.
 *   **Interactive Control Panel:** Clickable Windows Batch Control Panel (`start_system.bat`) to launch servers, run benchmarks, open chat clients, and monitor VRAM.
+*   **Advanced Terminal Interfaces:** Includes a styled, autocomplete-enabled Interactive CLI Shell (`vasis_cli.py`) and a full-screen, asynchronous Textual Terminal User Interface (TUI, `vasis_shell.py`) for comprehensive RAG querying, agent inspection, and multi-document vault operations.
 
 ---
 
@@ -34,11 +35,11 @@ The system is fully self-contained, requiring zero external APIs, keys, or cloud
 *   **Python 3.9+ / 3.11:** Core runtime.
 *   **PyMuPDF (`fitz`):** Ultra-fast local PDF processing and text extraction.
 *   **FastAPI & Uvicorn (`api.py`):** REST API endpoints supporting frontend and control panel integrations.
-*   **Rich CLI Dashboard:** Provides visual terminal panels, real-time agent output logging, and benchmark formatting.
+*   **Rich CLI Dashboard, Autocomplete Shell, & Textual TUI:** Provides advanced visual terminal panels (`rich`), an autocomplete-enabled interactive command line interface (`prompt_toolkit`), a full-screen asynchronous terminal dashboard (`textual`), and real-time agent routing visualization.
 
 ---
 
-## ─── THE 11-AGENT CRDB SWARM ORCHESTRATION ────────────────────────
+## ─── THE 14-AGENT CRDB SWARM ORCHESTRATION ────────────────────────
 
 At the heart of the system is the **Contextual Reconstruction Database (CRDB)**, managed by an autonomous multi-agent swarm:
 
@@ -148,7 +149,21 @@ Detailed documentation of our architectural innovations can be found in [innovat
     pip install -r requirements.txt
     ```
 
-### Running Commands via CLI
+### Running Commands & Interactive Clients
+
+#### 🖥️ Interactive Terminal Interfaces
+*   **Launch the Interactive CLI Shell (Rich + Autocomplete):**
+    ```bash
+    python vasis_cli.py
+    ```
+    *(Or run via `start_system.bat` option `1`)*. The shell supports autocomplete for commands, venues, levels, and local vault documents.
+*   **Launch the Full-Screen Textual TUI (Textual + Rich):**
+    ```bash
+    python vasis_shell.py [optional_path_to_pdf.pdf]
+    ```
+    *(See the detailed keyboard shortcut and command reference in [TUI.md](file:///e:/Vasis%20AI/TUI.md))*. It features asynchronous task processing (`@work`), thread-safe UI updates, a live agent activation sidebar, and a vault visualizer.
+
+#### ⚙️ Single-Line CLI Commands
 *   **Index a PDF Document:**
     ```bash
     python main.py index uploads/your_document.pdf
@@ -157,7 +172,7 @@ Detailed documentation of our architectural innovations can be found in [innovat
     ```bash
     python main.py ask uploads/your_document.pdf "What are the core metrics of this system?"
     ```
-*   **Launch Interactive Swarm Chat CLI:**
+*   **Launch Interactive Swarm Chat CLI (Legacy):**
     ```bash
     python main.py chat uploads/your_document.pdf
     ```
@@ -167,7 +182,7 @@ Detailed documentation of our architectural innovations can be found in [innovat
     ```
 
 ### Windows Control Panel Launcher
-Double-click [start_system.bat](file:///e:/Vasis%20AI/start_system.bat) in Windows Explorer to open the interactive dashboard. You can start chats, run benchmark validations, index new documents, launch the API backend, and monitor local VRAM health directly from this dashboard.
+Double-click [start_system.bat](file:///e:/Vasis%20AI/start_system.bat) in Windows Explorer to open the interactive dashboard. You can start the Interactive CLI Shell, run benchmark validations, index new documents, launch the API backend, and monitor local VRAM health directly from this dashboard.
 
 ---
 

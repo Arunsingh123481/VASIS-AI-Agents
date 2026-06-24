@@ -37,6 +37,7 @@ arxiv>=2.1.0
 click>=8.1.0
 rich>=13.7.0
 prompt_toolkit>=3.0.43
+textual>=0.50.0
 tqdm>=4.66.0
 python-dotenv>=1.0.0
 
