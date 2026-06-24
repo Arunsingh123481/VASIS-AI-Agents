@@ -201,7 +201,7 @@ This sequentially tests:
 
 ---
 
-## ─── INTERFACE SCREENSHOTS & GALLERY ─────────────────────────────────
+## INTERFACE SCREENSHOTS & GALLERY 
 
 Below is a visual walkthrough of the system interfaces, showing the autocomplete CLI, the full-screen Textual TUI dashboard, and multi-agent consensus workflows.
 
