@@ -684,7 +684,7 @@ def write_paper(
     start_time = time.time()
 
     print_msg(f"\n{'='*60}")
-    print_msg(f"[Agent13] RESEARCH PAPER WRITER  (atoms-first strategy)")
+    print_msg("[Agent13] RESEARCH PAPER WRITER  (atoms-first strategy)")
     _topic_display = topic if len(topic) <= 80 else topic[:77] + "..."
     print_msg(f"[Agent13] Topic:       {_topic_display}")
     print_msg(f"[Agent13] Venue:       {venue} ({template.get('full_name', '')})")

@@ -751,7 +751,7 @@ Return JSON:
                                     print_msg(f"[Agent10] BM25 fallback successfully found {len(fallback_anchors)} anchor atoms.")
                                     anchors = fallback_anchors
                                 else:
-                                    print_msg(f"[Agent10] BM25 fallback found nothing. Query is out-of-scope.")
+                                    print_msg("[Agent10] BM25 fallback found nothing. Query is out-of-scope.")
                                     anchors = []
                             except Exception as e:
                                 print_msg(f"[Agent10] BM25 fallback error: {e}")

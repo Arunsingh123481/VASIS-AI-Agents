@@ -13,25 +13,18 @@ Or with a PDF pre-loaded:
 import sys
 import os
 import re
-import asyncio
-import threading
 from datetime import datetime
 
 from textual.app import App, ComposeResult
 from textual.widgets import (
     Header, Footer, Static, Input, RichLog,
-    ListView, ListItem, Label, ContentSwitcher, Button, ProgressBar
+    Button
 )
 from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.reactive import reactive
 from textual import work
 from textual.binding import Binding
 from textual.screen import ModalScreen
-from rich.text import Text
-from rich.panel import Panel
-from rich.table import Table
-from rich.markdown import Markdown
-from rich import box
 
 # Import Agent-specific routing patterns
 from agent_routing_rules import QUERY_DETECTION_PATTERNS
@@ -640,7 +633,7 @@ class VasisApp(App):
 
     def _dispatch_command(self, text: str) -> None:
         # Echo user input
-        self.chat_log.write(f"\n[bold orange]╭── you[/bold orange]")
+        self.chat_log.write("\n[bold orange]╭── you[/bold orange]")
         self.chat_log.write(f"[bold orange]╰──>[/bold orange] {text}")
         self.chat_log.write("")
 
@@ -897,7 +890,7 @@ class VasisApp(App):
 
             self.call_from_thread(self.status_bar.set_doc, os.path.basename(path))
             self.call_from_thread(self.status_bar.set_model, DEFAULT_MODEL)
-            self.call_from_thread(self._ok, f"Document indexed successfully")
+            self.call_from_thread(self._ok, "Document indexed successfully")
             self.call_from_thread(self._separator)
             self.call_from_thread(self.chat_log.write, f"  [bold cyan]Tree nodes:[/bold cyan]  {stats['tree_nodes']}")
             self.call_from_thread(self.chat_log.write, f"  [bold cyan]Atoms:[/bold cyan]       {stats['total_atoms']}")
@@ -1126,7 +1119,7 @@ class VasisApp(App):
                         venue=self._venue,
                         article_type=self._article_type
                     )
-                    self.call_from_thread(self._ok, f"Paper generated and saved")
+                    self.call_from_thread(self._ok, "Paper generated and saved")
                     self.call_from_thread(self.chat_log.write, f"  [bold cyan]Path:[/bold cyan]  {path}")
                     preview = paper["full_text"][:600].replace('\n', ' ')
                     self.call_from_thread(self._separator)
@@ -1196,7 +1189,7 @@ class VasisApp(App):
                         topic=topic,
                         researcher_level=self._researcher_level
                     )
-                    self.call_from_thread(self._ok, f"Guide generated and saved")
+                    self.call_from_thread(self._ok, "Guide generated and saved")
                     self.call_from_thread(self.chat_log.write, f"  [bold cyan]Path:[/bold cyan]  {path}")
                     preview = guide["full_text"][:600].replace('\n', ' ')
                     self.call_from_thread(self._separator)

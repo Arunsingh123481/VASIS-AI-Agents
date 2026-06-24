@@ -14,7 +14,6 @@ All dispatch methods call the real VASIS agent backend.
 import sys
 import os
 import re
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -25,8 +24,6 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.table import Table
 from rich.markdown import Markdown
-from rich.rule import Rule
-from rich.columns import Columns
 from rich import box
 
 # ── Prompt Toolkit ────────────────────────────────────────────────────────────
@@ -125,7 +122,7 @@ def agent_line(name: str, grade: str, score: float, elapsed: float):
 
 def skip_line(name: str):
     line = Text()
-    line.append(f"  — ", style=T.DIM)
+    line.append("  — ", style=T.DIM)
     line.append(f"{name:<16}", style=T.DIM)
     line.append("skip", style=T.DIM)
     console.print(line)
@@ -426,7 +423,7 @@ class VasisCLI:
             try:
                 raw = self.session.prompt(_prompt_text()).strip()
             except KeyboardInterrupt:
-                console.print(Text(f"\n  Use /exit to quit.", style=T.MUTED))
+                console.print(Text("\n  Use /exit to quit.", style=T.MUTED))
                 continue
             except EOFError:
                 self._cmd_exit()
@@ -538,7 +535,7 @@ class VasisCLI:
             return
 
         nl()
-        console.print(Text(f"  Writing research paper…", style=T.MUTED))
+        console.print(Text("  Writing research paper…", style=T.MUTED))
         console.print(Text(f"  {topic}", style=f"bold {T.TEXT}"))
         info_line(f"Venue: {self.venue}  ·  Type: {self.doc_type}")
         nl()
@@ -584,7 +581,7 @@ class VasisCLI:
             return
 
         nl()
-        console.print(Text(f"  Building implementation guide…", style=T.MUTED))
+        console.print(Text("  Building implementation guide…", style=T.MUTED))
         console.print(Text(f"  {topic}", style=f"bold {T.TEXT}"))
         info_line(f"Level: {self.level}")
         nl()
