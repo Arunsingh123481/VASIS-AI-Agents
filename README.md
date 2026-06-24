@@ -6,7 +6,7 @@ The system is fully self-contained, requiring zero external APIs, keys, or cloud
 
 ---
 
-## ─── SYSTEM FEATURES & CAPABILITIES ───────────────────────────────
+## SYSTEM FEATURES & CAPABILITIES 
 
 *   **Vectorless RAG Architecture:** Replaces traditional vector embeddings and flat chunking with a dual-layer index that preserves document hierarchy and sequence.
 *   **Dual-Model Orchestration Swarm:** Dynamically routes tasks between lightweight agentic models (`qwen2.5-coder:3b` for fast, structured planning and parsing) and deep reasoning models (`deepseek-llm:7b` for qualitative synthesis and grounding audits).
@@ -18,7 +18,7 @@ The system is fully self-contained, requiring zero external APIs, keys, or cloud
 
 ---
 
-## ─── KEY TECHNOLOGIES USED ───────────────────────────────────────
+## KEY TECHNOLOGIES USED 
 
 ### 1. Model Orchestration & Local LLM Host
 *   **Ollama (Local Server @ Port 11435):** Offline inference gateway running open-weights LLMs with hardware acceleration.
@@ -39,8 +39,7 @@ The system is fully self-contained, requiring zero external APIs, keys, or cloud
 
 ---
 
-## ─── THE 14-AGENT CRDB SWARM ORCHESTRATION ────────────────────────
-
+## THE 14-AGENT CRDB SWARM ORCHESTRATION 
 At the heart of the system is the **Contextual Reconstruction Database (CRDB)**, managed by an autonomous multi-agent swarm:
 
 ```mermaid
@@ -110,7 +109,7 @@ graph TD
 
 ---
 
-## ─── CORE SYSTEM INNOVATIONS ──────────────────────────────────────
+## CORE SYSTEM INNOVATIONS 
 
 Detailed documentation of our architectural innovations can be found in [innovation.md](file:///e:/Vasis%20AI/innovation.md):
 1.  **RE-MSE Progressive Expansion:** Eliminates context gaps by statefully growing retrieval regions around key facts.
@@ -123,7 +122,7 @@ Detailed documentation of our architectural innovations can be found in [innovat
 
 ---
 
-## ─── INSTALLATION & QUICK START ──────────────────────────────────
+## INSTALLATION & QUICK START 
 
 ### Prerequisites
 *   Install [Ollama](https://ollama.ai)
@@ -186,7 +185,7 @@ Double-click [start_system.bat](file:///e:/Vasis%20AI/start_system.bat) in Windo
 
 ---
 
-## ─── DIAGNOSTIC BENCHMARKS & EVALUATION ────────────────────────────
+## DIAGNOSTIC BENCHMARKS & EVALUATION 
 
 The system includes a dedicated, ASCII-safe RAG evaluation suite to verify **factual recall**, **precision accuracy**, and **hallucination rejection** under offline conditions.
 
