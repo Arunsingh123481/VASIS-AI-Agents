@@ -546,12 +546,8 @@ class VasisCLI:
 
     def _load_single(self, path: str):
         fname = Path(path).name
-        with console.status(
-            f"[{T.MUTED}]Indexing {fname}…[/]",
-            spinner="dots",
-            spinner_style=T.PRIMARY,
-        ):
-            result = self._dispatch_index(path)
+        console.print(f"[{T.MUTED}]Indexing {fname}…[/]")
+        result = self._dispatch_index(path)
 
         if result:
             self.vault_docs.append(result)
