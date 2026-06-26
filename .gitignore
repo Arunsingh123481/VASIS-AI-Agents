@@ -30,3 +30,6 @@ outputs/
 
 # Learn engine runtime data
 .vasis_learn.json
+
+# Local documentation guides
+loop.md
