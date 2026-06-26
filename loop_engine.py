@@ -47,7 +47,6 @@ INTEGRATION
 """
 
 import time
-import math
 import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -691,7 +690,7 @@ class LoopOrchestrator:
         # ── run each loop ─────────────────────────────────────────────────────
         for loop_name in ordered:
             if ctx.over_budget:
-                self._emit("warn", f"Time budget exceeded — skipping remaining loops.", ctx)
+                self._emit("warn", "Time budget exceeded — skipping remaining loops.", ctx)
                 break
 
             LoopCls = self.LOOP_CLASSES.get(loop_name)
@@ -783,7 +782,6 @@ def parse_loop_command(args: str) -> dict:
         "config"
         "status"
     """
-    import re
     parts  = args.strip().split()
     result = {
         "task":         None,

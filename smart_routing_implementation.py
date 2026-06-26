@@ -408,7 +408,6 @@ def execute_smart(question: str,
     contradiction  = None
     calibration    = None
     synthesis      = None
-    narrative      = ""
 
     def is_needed(agent_name: str) -> bool:
         """Check if agent should run."""
@@ -587,7 +586,7 @@ def execute_smart(question: str,
     all_pages      = []
 
     for sq in sub_queries:
-        t4 = time.time()
+        time.time()
         try:
             anchors = a4.retrieve(
                 sq, selected_nodes, tree,
@@ -618,7 +617,7 @@ def execute_smart(question: str,
             anchors = []
 
         # ── STEP 8: AGENT 5 — EXPANSION ──────────────────
-        t5 = time.time()
+        time.time()
         try:
             expansion = a5.expand(
                 anchor_atoms=anchors,
@@ -910,9 +909,12 @@ def execute_smart(question: str,
     ) if ran_agents else 0.5
 
     def grade(s):
-        if s >= 0.85: return "A"
-        if s >= 0.70: return "B"
-        if s >= 0.50: return "C"
+        if s >= 0.85:
+            return "A"
+        if s >= 0.70:
+            return "B"
+        if s >= 0.50:
+            return "C"
         return "F"
 
     elapsed_total = round(time.time()-start_time, 2)

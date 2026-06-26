@@ -422,7 +422,7 @@ def _write_introduction(
     system: str,
 ) -> dict:
     """Write the introduction section — grounded."""
-    config = get_article_config(article_type)
+    get_article_config(article_type)
     ref_style = template.get("reference_style", "numbered")
     extra = (
         f"6. Open with a strong hook establishing importance.\n"
@@ -885,7 +885,7 @@ def write_paper(
                 )
             else:
                 heading = key.replace("_", " ").title()
-                trust_label = section_trust.get(key, {}).get("label", "")
+                section_trust.get(key, {}).get("label", "")
                 disclaimer  = ""
                 action      = section_trust.get(key, {}).get("action", "")
                 if action == "INCLUDE WITH DISCLAIMER":
@@ -922,7 +922,7 @@ def write_paper(
 
     warning_suffix = ""
     if audit["verdict"] == "FAIL":
-        ungrounded_preview = "\n".join(
+        "\n".join(
             f"  • {s[:120]}"
             for s in audit["ungrounded_sentences"][:5]
         )

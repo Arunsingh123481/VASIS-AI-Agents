@@ -84,7 +84,8 @@ def retrieve(
             if header_pattern.match(atom.get("text", "")):
                 bib_atoms = tail_candidates[i+1:]
                 if bib_atoms:
-                    for a in bib_atoms: a["combined_score"] = 1.0
+                    for a in bib_atoms:
+                        a["combined_score"] = 1.0
                     print_msg(f"[Agent4] Bibliography mode Tier-1.5: found explicit references header at atom {atom['atom_id']}. Returning {len(bib_atoms)} atoms to end of document.")
                     return bib_atoms
 

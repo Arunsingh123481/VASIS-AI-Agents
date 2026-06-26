@@ -33,7 +33,7 @@ from agent_routing_rules import QUERY_DETECTION_PATTERNS
 from learn_engine import LearnEngine
 # ── Loop Engine ───────────────────────────────────────────────────────────────
 from loop_engine import (
-    LoopOrchestrator, LoopContext, parse_loop_command,
+    LoopOrchestrator, parse_loop_command,
     PRESETS, EXECUTION_ORDER,
     GROUNDING_THRESHOLD, DEEP_RESEARCH_MIN_ATOMS,
     MAX_CRITIQUE_ROUNDS, CONSENSUS_DRAFTS,
@@ -1276,7 +1276,7 @@ class VasisApp(App):
     def _run_loop_worker(self, topic: str, loop_types: list, max_iter: int) -> None:
         self._loop_active_ctx = None
         self.call_from_thread(self._set_busy, True, "LOOP ACTIVE", "yellow")
-        self.call_from_thread(self._info, f"Running looped paper pipeline...")
+        self.call_from_thread(self._info, "Running looped paper pipeline...")
 
         def on_status(level, msg, ctx):
             self._loop_active_ctx = ctx
