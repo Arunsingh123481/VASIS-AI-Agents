@@ -586,13 +586,12 @@ def execute_smart(question: str,
     all_pages      = []
 
     for sq in sub_queries:
-        time.time()
         try:
             anchors = a4.retrieve(
                 sq, selected_nodes, tree,
                 atom_store, bm25_index,
                 triple_store, warm_atoms,
-                is_bibliography=is_bib
+                routed=routed
             )
             review = _agent10_review(
                 "agent4_retrieval",
@@ -610,14 +609,13 @@ def execute_smart(question: str,
                         [n["node_id"] for n in tree],
                         tree, atom_store, bm25_index,
                         triple_store, warm_atoms,
-                        is_bibliography=is_bib
+                        routed=routed
                     )
         except Exception as e:
             print(f"[Agent10] agent4 error: {e}")
             anchors = []
 
         # ── STEP 8: AGENT 5 — EXPANSION ──────────────────
-        time.time()
         try:
             expansion = a5.expand(
                 anchor_atoms=anchors,
@@ -728,7 +726,8 @@ def execute_smart(question: str,
                         rs.refined_query,
                         selected_nodes, tree,
                         atom_store, bm25_index,
-                        triple_store
+                        triple_store, warm_atoms,
+                        routed=routed
                     )
                     re_exp = a5.expand(
                         re_anchors, atom_store,
