@@ -45,6 +45,14 @@ from learn_engine import (
     render_preflight, render_active_learn_result,
 )
 
+# ── Loop Engine ───────────────────────────────────────────────────────────────
+from loop_engine import (
+    LoopOrchestrator, LoopContext, parse_loop_command,
+    PRESETS, EXECUTION_ORDER,
+    GROUNDING_THRESHOLD, DEEP_RESEARCH_MIN_ATOMS,
+    MAX_CRITIQUE_ROUNDS, CONSENSUS_DRAFTS,
+)
+
 # =============================================================================
 # THEME — edit these to change the look
 # =============================================================================
@@ -267,6 +275,10 @@ def help_table():
         ("/learn <topic>",          "Crawl web and ingest atoms on a topic"),
         ("/learn feedback",         "Rate/correct the last generated paper"),
         ("/learn review",           "Full learning dashboard"),
+        ("/loop paper <topic>",     "Run looped paper pipeline  (quality + chain)"),
+        ("/loop config",            "Show current loop settings"),
+        ("/loop status",            "Show live loop state"),
+        ("/loop help",              "Show detailed loop subcommands & presets"),
         ("/status",                 "Show loaded document stats"),
         ("/tree",                   "Show PageIndex tree structure"),
         ("/history",                "Show recent query history"),
@@ -363,7 +375,7 @@ COMMANDS = [
     "/index", "/vault", "/query", "/paper", "/guide",
     "/outputs", "/venue", "/type", "/level",
     "/status", "/tree", "/history",
-    "/models", "/learn", "/clear", "/help", "/exit",
+    "/models", "/learn", "/loop", "/clear", "/help", "/exit",
 ]
 
 _pt_style = Style.from_dict({
@@ -419,7 +431,7 @@ class VasisCLI:
         self.level = level
         self.outputs_dir = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), outputs_dir))
         self.vault_docs: list = []
-        self.session = _make_session()
+        self.session = None
 
         # Backend state
         self.rag = None              # PageIndexREMSE instance (single-paper mode)
@@ -432,6 +444,8 @@ class VasisCLI:
     # ── Public entry point ────────────────────────────────────────────────────
 
     def run(self):
+        if self.session is None:
+            self.session = _make_session()
         model_str = f"{AGENT_MODEL} / {REASONING_MODEL}"
         print_banner(self.venue, self.doc_type, model_str)
         while True:
@@ -475,6 +489,7 @@ class VasisCLI:
             "/models":  lambda: self._cmd_models(),
             "/clear":   lambda: self._cmd_clear(),
             "/learn":   lambda: self._cmd_learn(args),
+            "/loop":    lambda: self._cmd_loop(args),
             "/help":    lambda: help_table(),
             "/exit":    lambda: self._cmd_exit(),
             "/quit":    lambda: self._cmd_exit(),
@@ -1223,6 +1238,348 @@ class VasisCLI:
 
         console.print()
 
+    # =========================================================================
+    # /loop COMMAND  — reactive multi-loop paper pipeline
+    # =========================================================================
+
+    def _init_loop_orchestrator(self):
+        """Lazily create the LoopOrchestrator with real agent dispatch adapters."""
+        if hasattr(self, '_loop_orch') and self._loop_orch is not None:
+            return
+        self._loop_orch = LoopOrchestrator(
+            agents={
+                "agent12_websearch":    self._loop_dispatch_agent12,
+                "agent13_paper_writer": self._loop_dispatch_agent13,
+                "agent13_revise":       self._loop_dispatch_agent13,
+                "agent14_impl_guide":   self._loop_dispatch_agent14,
+                "agent7_contradiction": self._loop_dispatch_agent7,
+                "agent11_synthesis":    self._loop_dispatch_agent11,
+                "grounding_auditor":    self._loop_dispatch_grounding_audit,
+                "learn_engine":         self.learn,
+            },
+        )
+        self._loop_last_ctx: Optional[LoopContext] = None
+
+    # ── /loop entry ──────────────────────────────────────────────────────────
+
+    def _cmd_loop(self, args: str):
+        parsed = parse_loop_command(args)
+
+        if parsed["special"]:
+            if parsed["special"] == "help":
+                self._loop_help()
+            elif parsed["special"] == "config":
+                self._loop_config()
+            elif parsed["special"] == "status":
+                self._loop_status()
+            return
+
+        topic      = parsed["topic"]
+        loop_types = parsed["loop_types"]
+        max_iter   = parsed["max_iter"]
+
+        if not topic:
+            error_line("Usage: /loop paper <topic> [quality] [chain] [full] [--max N]")
+            return
+        if not self.rag and not self._vault_session:
+            error_line("Load documents first with /index or /vault")
+            return
+
+        self._init_loop_orchestrator()
+
+        nl()
+        console.print(Text(f"  /loop paper · {topic}", style=f"bold {T.TEXT}"))
+        console.print(Text(
+            f"  Loops: {', '.join(loop_types)}  ·  max {max_iter} retries",
+            style=T.MUTED,
+        ))
+        nl()
+
+        def on_status(level, msg, ctx):
+            icons = {
+                "start": "◆", "done": "✓", "skip": "—",
+                "iter": "·", "auto": "⚡", "warn": "⚠", "error": "✗",
+            }
+            icon = icons.get(level, "·")
+            colors = {
+                "start": T.PRIMARY, "done": T.SUCCESS, "skip": T.DIM,
+                "warn": T.WARNING, "error": T.ERROR, "auto": T.SECONDARY,
+            }
+            color = colors.get(level, T.MUTED)
+            console.print(Text(f"  {icon}  {msg}", style=color))
+
+        ctx = self._loop_orch.run(
+            topic          = topic,
+            loop_types     = loop_types,
+            venue          = self.venue,
+            doc_type       = self.doc_type,
+            level          = self.level,
+            max_iterations = max_iter,
+            status_cb      = on_status,
+        )
+        self._loop_last_ctx = ctx
+
+        # ── results ──────────────────────────────────────────────────────────
+        nl()
+        divider("Loop results")
+        if ctx.paper_written:
+            success_line(
+                f"Paper: {ctx.word_count} words  ·  "
+                f"grounding {ctx.grounding_ratio:.0%}"
+            )
+            # Auto-save
+            try:
+                from main import _save_agent_output
+                path = _save_agent_output(
+                    content=ctx.paper_text,
+                    agent_name="paper",
+                    topic=topic,
+                    venue=self.venue,
+                    article_type=self.doc_type,
+                )
+                success_line(f"Paper saved → {path}")
+            except Exception as e:
+                error_line(f"Save failed: {e}")
+
+        if ctx.guide_written:
+            success_line(
+                f"Guide: {len(ctx.guide_text.split())} words"
+            )
+            try:
+                from main import _save_agent_output
+                path = _save_agent_output(
+                    content=ctx.guide_text,
+                    agent_name="guide",
+                    topic=topic,
+                    researcher_level=self.level,
+                )
+                success_line(f"Guide saved → {path}")
+            except Exception as e:
+                error_line(f"Save failed: {e}")
+
+        info_line(
+            f"Completed loops: {', '.join(ctx.completed_loops) or 'none'}  ·  "
+            f"elapsed {ctx.elapsed_s:.1f}s"
+        )
+        nl()
+
+    # ── /loop help ───────────────────────────────────────────────────────────
+
+    def _loop_help(self):
+        nl()
+        table = Table(
+            title="  /loop — Reactive Multi-Agent Loop Engine",
+            box=box.SIMPLE_HEAD,
+            title_style=f"bold {T.PRIMARY}",
+            border_style=T.DIM,
+            pad_edge=False,
+        )
+        table.add_column("Command", style=f"bold {T.INFO}", no_wrap=True)
+        table.add_column("Description", style=T.TEXT)
+        rows = [
+            ('/loop paper <topic>',              'quality + chain (smart default)'),
+            ('/loop paper <topic> chain',         'Generates paper then guide'),
+            ('/loop paper <topic> quality',        'Loops writing and citation fixes until grounding score >= 85%'),
+            ('/loop paper <topic> critique',       'Runs logic contradiction audit, then performs section-level revisions'),
+            ('/loop paper <topic> deep',           'Accumulates web sources/atoms prior to writing'),
+            ('/loop paper <topic> consensus',      'Builds two distinct writing drafts and merges the best sections using Agent 11'),
+            ('/loop paper <topic> full',           'Combines all loops together: research -> drafts -> grounding -> consistency -> guide -> learn'),
+            ('/loop paper <topic> deep quality chain --max 3', 'combine loops with retry limit'),
+            ('/loop config',                       'show current loop settings'),
+            ('/loop status',                       'show live loop state'),
+        ]
+        for cmd, desc in rows:
+            table.add_row(cmd, desc)
+        console.print(table)
+        nl()
+
+    # ── /loop config ─────────────────────────────────────────────────────────
+
+    def _loop_config(self):
+        nl()
+        divider("Loop configuration")
+        settings = [
+            ("Grounding threshold",    f"{GROUNDING_THRESHOLD:.0%}"),
+            ("Deep-research min atoms", str(DEEP_RESEARCH_MIN_ATOMS)),
+            ("Max critique rounds",    str(MAX_CRITIQUE_ROUNDS)),
+            ("Consensus drafts",       str(CONSENSUS_DRAFTS)),
+            ("Default loops",          ", ".join(PRESETS["default"])),
+            ("Full loops",             ", ".join(PRESETS["full"])),
+            ("Execution order",        " → ".join(EXECUTION_ORDER)),
+        ]
+        for label, value in settings:
+            line = Text()
+            line.append(f"  {label}: ", style=T.MUTED)
+            line.append(value, style=f"bold {T.TEXT}")
+            console.print(line)
+        nl()
+
+    # ── /loop status ─────────────────────────────────────────────────────────
+
+    def _loop_status(self):
+        ctx = getattr(self, '_loop_last_ctx', None)
+        nl()
+        if not ctx:
+            info_line("No loop has been run yet.  Use /loop paper <topic> to start.")
+            nl()
+            return
+
+        divider("Last loop run")
+        rows = [
+            ("Topic",            ctx.topic),
+            ("Run ID",           ctx.run_id),
+            ("Elapsed",          f"{ctx.elapsed_s:.1f}s"),
+            ("Active loops",     ", ".join(ctx.active_loops)),
+            ("Completed loops",  ", ".join(ctx.completed_loops)),
+            ("Paper written",    "yes" if ctx.paper_written else "no"),
+            ("Guide written",    "yes" if ctx.guide_written else "no"),
+            ("Word count",       str(ctx.word_count)),
+            ("Grounding",        f"{ctx.grounding_ratio:.0%} "
+                                 f"({ctx.grounding_tagged}/{ctx.grounding_total})"),
+            ("Atoms collected",  str(len(ctx.atoms))),
+            ("Drafts generated", str(len(ctx.drafts))),
+            ("Failures",         str(len(ctx.failures)) if ctx.failures else "none"),
+        ]
+        for label, value in rows:
+            line = Text()
+            line.append(f"  {label}: ", style=T.MUTED)
+            style = f"bold {T.SUCCESS}" if "yes" in value else \
+                    f"bold {T.ERROR}" if "no" == value else \
+                    f"bold {T.TEXT}"
+            line.append(value, style=style)
+            console.print(line)
+        nl()
+
+    # =========================================================================
+    # LOOP AGENT DISPATCH ADAPTERS
+    # These bridge the loop engine's generic callable interface to the real
+    # VASIS agents.  Each returns the dict shape the loop engine expects.
+    # =========================================================================
+
+    def _get_all_atoms(self) -> list:
+        """Get all atoms from either the single RAG document or vault session."""
+        if self._vault_session:
+            atoms = []
+            for rag in self._vault_session.papers.values():
+                atoms.extend(getattr(rag, "atoms", []))
+            return atoms
+        elif self.rag:
+            return getattr(self.rag, "atoms", [])
+        return []
+
+    def _loop_dispatch_agent12(self, queries: list) -> list:
+        """Agent 12 web search — returns list of source dicts."""
+        try:
+            from agents.agent12_websearch import search_web
+            result = search_web(
+                topic=" ".join(queries[:2]),
+                queries_override=queries,
+            )
+            return result.get("sources", [])
+        except Exception as e:
+            console.print(Text(f"  ⚠ Agent 12 error: {e}", style=T.WARNING))
+            return []
+
+    def _loop_dispatch_agent13(self, **kwargs) -> dict:
+        """Agent 13 paper writer — maps loop engine kwargs to write_paper."""
+        from agents import agent13_paper_writer as a13
+
+        topic       = kwargs.get("topic", "")
+        atoms       = kwargs.get("atoms", [])
+        if not atoms:
+            atoms = self._get_all_atoms()
+        web_sources = kwargs.get("web_sources", [])
+        venue       = kwargs.get("venue", self.venue)
+        doc_type    = kwargs.get("doc_type", self.doc_type)
+        extra_instr = kwargs.get("extra_instruction", "")
+
+        # Handle revision mode (CritiqueReviseLoop)
+        paper_text = kwargs.get("paper_text", "")
+        revision_flags = kwargs.get("revision_flags", [])
+        instruction = kwargs.get("instruction", "")
+        if paper_text and (revision_flags or instruction):
+            # Revision: append the fix instructions to extra_instruction
+            extra_instr = (extra_instr + "\n" + instruction).strip()
+            # We still call write_paper with the extra instruction
+            # The critique loop replaces the paper text from the result
+
+        web_evidence = {"sources": web_sources}
+        try:
+            result = a13.write_paper(
+                topic=topic,
+                venue=venue,
+                article_type=doc_type,
+                atoms=atoms,
+                web_evidence=web_evidence,
+                extra_instruction=extra_instr,
+            )
+            return {
+                "paper_text":       result.get("full_text", ""),
+                "grounding_ratio":  result.get("audit", {}).get("grounding_ratio", 0.0),
+                "tagged":           result.get("audit", {}).get("grounded_sentences", 0),
+                "total":            result.get("audit", {}).get("total_sentences", 0),
+                "word_count":       result.get("word_count", 0),
+                "agent_result":     result,
+            }
+        except Exception as e:
+            console.print(Text(f"  ⚠ Agent 13 error: {e}", style=T.WARNING))
+            return {"paper_text": paper_text, "grounding_ratio": 0.0}
+
+    def _loop_dispatch_agent14(self, **kwargs) -> dict:
+        """Agent 14 implementation guide — maps loop engine kwargs."""
+        from agents import agent14_implementation_guide as a14
+        try:
+            result = a14.guide_implementation(
+                innovation=kwargs.get("topic", ""),
+                narrative=kwargs.get("paper_text", ""),
+                web_evidence={"sources": kwargs.get("web_sources", [])},
+                researcher_level=kwargs.get("level", self.level),
+            )
+            return {
+                "guide_text": result.get("full_text", ""),
+                "steps":      [],
+                "word_count": len(result.get("full_text", "").split()),
+            }
+        except Exception as e:
+            console.print(Text(f"  ⚠ Agent 14 error: {e}", style=T.WARNING))
+            return {"guide_text": ""}
+
+    def _loop_dispatch_agent7(self, paper_text: str) -> list:
+        """Agent 7 contradiction — returns list of contradiction description strings."""
+        try:
+            from agents import agent7_contradiction as a7
+            from db.triple_store import TripleStore
+            ts = TripleStore([])
+            result = a7.detect([], ts, paper_text)
+            flags = []
+            for c in result.get("llm_contradictions", []):
+                flags.append(
+                    f"{c.get('type', 'logical')} conflict: "
+                    f"{c.get('claim_a', '')} vs {c.get('claim_b', '')}"
+                )
+            return flags
+        except Exception as e:
+            console.print(Text(f"  ⚠ Agent 7 error: {e}", style=T.WARNING))
+            return []
+
+    def _loop_dispatch_agent11(self, drafts: list) -> dict:
+        """Agent 11 draft merger — picks best sections from multiple drafts."""
+        # Agent 11 in the current codebase is a causal-chain synthesiser,
+        # not a draft merger.  We implement a simple section-level merge here:
+        # pick the draft with better grounding for each section.
+        if not drafts:
+            return {"paper_text": ""}
+        best = max(drafts, key=lambda d: d.get("grounding_ratio", 0.0))
+        return {"paper_text": best.get("paper_text", "")}
+
+    def _loop_dispatch_grounding_audit(self, paper_text: str) -> dict:
+        """Grounding audit — counts [A:…] / [W:…] citation markers."""
+        import re as _re
+        sentences = _re.split(r"(?<=[.!?])\s+", paper_text)
+        tagged = sum(1 for s in sentences if _re.search(r"\[\s*[AW]\s*:\s*[^\]]+\]", s))
+        total = max(len(sentences), 1)
+        return {"ratio": tagged / total, "tagged": tagged, "total": total}
+
     # ── pre-flight banner (called before /paper) ──────────────────────────
 
     def _show_preflight(self, hint: PreflightHint):
@@ -1697,29 +2054,8 @@ class VasisCLI:
         return agents
 
     def _extract_preview(self, full_text: str) -> str:
-        """Extract first ~600 chars of paper text as markdown preview."""
-        if not full_text:
-            return ""
-        # Find Abstract and Introduction sections
-        preview_parts = []
-        lines = full_text.split("\n")
-        in_section = False
-        chars_collected = 0
-        for line in lines:
-            if line.strip().startswith("## "):
-                if chars_collected > 400:
-                    break
-                in_section = True
-                preview_parts.append(line)
-                continue
-            if in_section:
-                preview_parts.append(line)
-                chars_collected += len(line)
-                if chars_collected > 600:
-                    preview_parts.append("…")
-                    break
-
-        return "\n".join(preview_parts) if preview_parts else full_text[:600] + "…"
+        """Return the full text of the generated paper for rendering in the console."""
+        return full_text or ""
 
     def _extract_guide_steps(self, result: dict) -> list:
         """

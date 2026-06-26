@@ -156,7 +156,7 @@ def _audit_paper_grounding(paper_text: str, citation_registry: dict) -> dict:
             continue
 
         evaluated += 1
-        has_tag = bool(re.search(r"\[A:[^\]]+\]|\[W:[^\]]+\]", sentence))
+        has_tag = bool(re.search(r"(?i)\[\s*[AW]\s*:\s*[^\]]+\]", sentence))
         if not has_tag:
             ungrounded.append(sentence)
 
@@ -278,18 +278,18 @@ def _write_section_grounded(
     for c in all_claims[:max_claims]:
         claims_for_prompt.append({
             "claim": c["claim"][:320],
-            "cite":  c["citation_key"],
-            "conf":  round(c.get("confidence", 0.8), 2),
+            "citation_key":  c["citation_key"],
+            "confidence":  round(c.get("confidence", 0.8), 2),
         })
 
     grounded_prompt = f"""You are a scientific paper writer. Your ONLY job is to write the '{section_name}' section of a research paper using EXCLUSIVELY the facts provided below.
 
 STRICT RULES:
-1. Every sentence you write MUST be traceable to one of the provided facts. Do NOT add any information from your own knowledge.
-2. If a fact is unclear, paraphrase it — do NOT expand or elaborate beyond what the fact states.
-3. Do NOT invent statistics, model names, benchmark scores, author names, or citations.
-4. If the provided facts are insufficient to write a full section, write only what the facts support and append: "[Insufficient grounded data for remainder of section]"
-5. After each sentence that uses a fact, append its citation key in square brackets, e.g. [A:page_3_id12] or [W:https_arxiv].
+1. Every sentence you write MUST end with the exact "citation_key" in square brackets (e.g. [A:page_3_id12] or [W:url_slug]) corresponding to the fact you used.
+2. DO NOT use numeric citations like [1] or [2]. You MUST only use the exact `citation_key` values provided in the list below.
+3. Every sentence must contain a citation. If a sentence uses info from multiple facts, combine their keys, e.g. [A:page_3_id12][W:url_slug].
+4. Do NOT add any information from your own knowledge. Paraphrase only the facts provided. Do not invent details.
+5. If the facts are insufficient to write a full section, write only what is supported and end with: "[Insufficient grounded data for remainder of section]"
 {extra_instructions}
 TOPIC CONTEXT (for tone and framing ONLY — do not invent content from this):
 {topic}
@@ -643,6 +643,7 @@ def write_paper(
     atoms: list = None,               # NEW: full atom objects for grounded writing
     web_evidence: dict = None,
     novel_connections: list = None,
+    extra_instruction: str = "",       # Loop engine: style override for consensus drafts
 ) -> Dict[str, Any]:
     """
     Main Agent 13 entry point.
@@ -680,6 +681,8 @@ def write_paper(
     web_sources  = web_evidence.get("sources", [])
     system_extra = config["system_prompt_addon"]
     system       = SYSTEM_WRITER + "\n\n" + system_extra
+    if extra_instruction:
+        system += "\n\n" + extra_instruction
 
     start_time = time.time()
 

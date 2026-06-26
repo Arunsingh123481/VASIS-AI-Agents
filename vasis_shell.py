@@ -29,6 +29,16 @@ from textual.screen import ModalScreen
 # Import Agent-specific routing patterns
 from agent_routing_rules import QUERY_DETECTION_PATTERNS
 
+# ── Learn Engine ──────────────────────────────────────────────────────────────
+from learn_engine import LearnEngine
+# ── Loop Engine ───────────────────────────────────────────────────────────────
+from loop_engine import (
+    LoopOrchestrator, LoopContext, parse_loop_command,
+    PRESETS, EXECUTION_ORDER,
+    GROUNDING_THRESHOLD, DEEP_RESEARCH_MIN_ATOMS,
+    MAX_CRITIQUE_ROUNDS, CONSENSUS_DRAFTS,
+)
+
 
 # ─── AGENT DEFINITIONS ───────────────────────────────────────────────────────
 
@@ -123,6 +133,10 @@ class HelpModal(ModalScreen):
                 "  [bold]/venue [name][/bold]        Set paper writing target journal/venue (e.g. IEEE, DSJ)\n"
                 "  [bold]/type [type][/bold]          Set article type (e.g. research_article, review_article)\n"
                 "  [bold]/level [level][/bold]        Set researcher level (beginner, masters, phd)\n\n"
+                "[bold cyan]LOOP COMMANDS[/bold cyan]\n"
+                "  [bold]/loop paper [topic][/bold]   Run loops on paper writing\n"
+                "  [bold]/loop config[/bold]          Show current loop config\n"
+                "  [bold]/loop status[/bold]          Show live loop status\n\n"
                 "[bold cyan]SYSTEM COMMANDS[/bold cyan]\n"
                 "  [bold]/agents[/bold]             Show all 14 agents and their roles\n"
                 "  [bold]/outputs[/bold]            List generated papers and guides\n"
@@ -555,6 +569,9 @@ class VasisApp(App):
         self._article_type = "research_article"
         self._researcher_level = "masters"
 
+        # Learn engine
+        self.learn = LearnEngine()
+
     # ── Compose ──────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
@@ -721,6 +738,10 @@ class VasisApp(App):
         elif lower.startswith("/guide "):
             topic = cmd[7:].strip()
             self._cmd_guide(topic)
+
+        elif lower.startswith("/loop ") or lower == "/loop":
+            args = cmd[5:].strip()
+            self._cmd_loop(args)
 
         elif lower.startswith("/query "):
             question = cmd[7:].strip()
@@ -1202,6 +1223,327 @@ class VasisApp(App):
             self.call_from_thread(self._err, f"Guide generation failed: {e}")
         finally:
             self.call_from_thread(self._set_busy, False)
+
+    # ── Loop Engine Integration ───────────────────────────────
+
+    def _init_loop_orchestrator(self) -> None:
+        if hasattr(self, '_loop_orch') and self._loop_orch is not None:
+            return
+        self._loop_orch = LoopOrchestrator(
+            agents={
+                "agent12_websearch":    self._loop_dispatch_agent12,
+                "agent13_paper_writer": self._loop_dispatch_agent13,
+                "agent13_revise":       self._loop_dispatch_agent13,
+                "agent14_impl_guide":   self._loop_dispatch_agent14,
+                "agent7_contradiction": self._loop_dispatch_agent7,
+                "agent11_synthesis":    self._loop_dispatch_agent11,
+                "grounding_auditor":    self._loop_dispatch_grounding_audit,
+                "learn_engine":         self.learn,
+            },
+        )
+        self._loop_last_ctx = None
+
+    def _cmd_loop(self, args: str) -> None:
+        parsed = parse_loop_command(args)
+
+        if parsed["special"]:
+            if parsed["special"] == "help":
+                self._loop_help()
+            elif parsed["special"] == "config":
+                self._loop_config()
+            elif parsed["special"] == "status":
+                self._loop_status()
+            return
+
+        topic      = parsed["topic"]
+        loop_types = parsed["loop_types"]
+        max_iter   = parsed["max_iter"]
+
+        if not topic:
+            self._warn("Usage: /loop paper <topic> [quality] [chain] [full] [--max N]")
+            return
+
+        has_rag = self.rag and self.rag._ready
+        has_vault = self._vault_session is not None
+        if not has_rag and not has_vault:
+            self._warn("Load a document first with [bold cyan]/index[/bold cyan] or [bold cyan]/vault[/bold cyan].")
+            return
+
+        self._init_loop_orchestrator()
+        self._run_loop_worker(topic, loop_types, max_iter)
+
+    @work(exclusive=True, thread=True)
+    def _run_loop_worker(self, topic: str, loop_types: list, max_iter: int) -> None:
+        self.call_from_thread(self._set_busy, True, "LOOP ACTIVE", "yellow")
+        self.call_from_thread(self._info, f"Running looped paper pipeline...")
+
+        def on_status(level, msg, ctx):
+            icons = {
+                "start": "◆", "done": "✓", "skip": "—",
+                "iter": "·", "auto": "⚡", "warn": "⚠", "error": "✗",
+            }
+            icon = icons.get(level, "·")
+            colors = {
+                "start": "purple", "done": "green", "skip": "dim",
+                "warn": "yellow", "error": "red", "auto": "blue",
+            }
+            color = colors.get(level, "gray")
+
+            markup_msg = f"  [bold {color}]{icon}[/bold {color}]  {msg}"
+            self.call_from_thread(self.chat_log.write, markup_msg)
+
+            # Sidebar agent mapping based on loop execution
+            loop_lower = msg.split()[0].lower() if msg else ""
+            agent_idx = -1
+            if loop_lower == "deep":
+                agent_idx = 11  # Agent 12
+            elif loop_lower in ("consensus", "_write"):
+                agent_idx = 12  # Agent 13
+            elif loop_lower == "quality":
+                agent_idx = 5   # Agent 06 (Validation)
+            elif loop_lower == "critique":
+                agent_idx = 6   # Agent 07 (Contradiction)
+            elif loop_lower == "chain":
+                agent_idx = 13  # Agent 14 (Implementation Guide)
+            elif loop_lower == "learn":
+                agent_idx = 9   # Agent 10 (Supervisor)
+
+            if agent_idx != -1:
+                self.call_from_thread(self.agent_panel.set_active, agent_idx)
+
+        try:
+            ctx = self._loop_orch.run(
+                topic          = topic,
+                loop_types     = loop_types,
+                venue          = self._venue,
+                doc_type       = self._article_type,
+                level          = self._researcher_level,
+                max_iterations = max_iter,
+                status_cb      = on_status,
+            )
+            self._loop_last_ctx = ctx
+
+            # Save outputs
+            self.call_from_thread(self.chat_log.write, "")
+            self.call_from_thread(self.chat_log.write, "[bold green]✓ LOOP EXECUTION COMPLETED[/bold green]")
+            self.call_from_thread(self._separator)
+
+            if ctx.paper_written:
+                self.call_from_thread(self._ok, f"Paper: {ctx.word_count} words  ·  grounding {ctx.grounding_ratio:.0%}")
+                try:
+                    from main import _save_agent_output
+                    path = _save_agent_output(
+                        content=ctx.paper_text,
+                        agent_name="paper",
+                        topic=topic,
+                        venue=self._venue,
+                        article_type=self._article_type,
+                    )
+                    self.call_from_thread(self._ok, f"Paper saved to [cyan]{path}[/cyan]")
+                except Exception as e:
+                    self.call_from_thread(self._err, f"Paper save failed: {e}")
+
+            if ctx.guide_written:
+                self.call_from_thread(self._ok, f"Guide: {len(ctx.guide_text.split())} words")
+                try:
+                    from main import _save_agent_output
+                    path = _save_agent_output(
+                        content=ctx.guide_text,
+                        agent_name="guide",
+                        topic=topic,
+                        researcher_level=self._researcher_level,
+                    )
+                    self.call_from_thread(self._ok, f"Guide saved to [cyan]{path}[/cyan]")
+                except Exception as e:
+                    self.call_from_thread(self._err, f"Guide save failed: {e}")
+
+            self.call_from_thread(self._info, f"Completed loops: {', '.join(ctx.completed_loops) or 'none'}  ·  elapsed {ctx.elapsed_s:.1f}s")
+            self.call_from_thread(self.chat_log.write, "")
+
+        except Exception as e:
+            self.call_from_thread(self._err, f"Loop execution failed: {e}")
+            import traceback
+            tb = traceback.format_exc()
+            self.call_from_thread(self.chat_log.write, f"[dim]{tb}[/dim]")
+        finally:
+            self.call_from_thread(self._set_busy, False)
+
+    def _loop_help(self) -> None:
+        self.chat_log.write("\n[bold orange]LOOP COMMANDS[/bold orange]")
+        self._separator()
+        rows = [
+            ("/loop paper <topic>",              "quality + chain (smart default)"),
+            ("/loop paper <topic> chain",         "Generates paper then guide"),
+            ("/loop paper <topic> quality",        "Loops writing and citation fixes until grounding score >= 85%"),
+            ("/loop paper <topic> critique",       "Runs logic contradiction audit, then performs section-level revisions"),
+            ("/loop paper <topic> deep",           "Accumulates web sources/atoms prior to writing"),
+            ("/loop paper <topic> consensus",      "Builds two distinct writing drafts and merges the best sections using Agent 11"),
+            ("/loop paper <topic> full",           "Combines all loops together: research -> drafts -> grounding -> consistency -> guide -> learn"),
+            ("/loop paper <topic> deep quality chain --max 3", "combine loops with retry limit"),
+            ("/loop config",                       "show current loop settings"),
+            ("/loop status",                       "show live loop state"),
+        ]
+        for cmd, desc in rows:
+            self.chat_log.write(f"  [bold cyan]{cmd:<48}[/bold cyan]  {desc}")
+        self._separator()
+        self.chat_log.write("")
+
+    def _loop_config(self) -> None:
+        self.chat_log.write("\n[bold orange]LOOP CONFIGURATION[/bold orange]")
+        self._separator()
+        settings = [
+            ("Grounding threshold",    f"{GROUNDING_THRESHOLD:.0%}"),
+            ("Deep-research min atoms", str(DEEP_RESEARCH_MIN_ATOMS)),
+            ("Max critique rounds",    str(MAX_CRITIQUE_ROUNDS)),
+            ("Consensus drafts",       str(CONSENSUS_DRAFTS)),
+            ("Default loops",          ", ".join(PRESETS["default"])),
+            ("Full loops",             ", ".join(PRESETS["full"])),
+            ("Execution order",        " → ".join(EXECUTION_ORDER)),
+        ]
+        for label, value in settings:
+            self.chat_log.write(f"  [bold cyan]{label:<28}[/bold cyan]  {value}")
+        self._separator()
+        self.chat_log.write("")
+
+    def _loop_status(self) -> None:
+        ctx = getattr(self, '_loop_last_ctx', None)
+        if not ctx:
+            self._info("No loop has been run yet. Use [bold cyan]/loop paper <topic>[/bold cyan] to start.")
+            return
+
+        self.chat_log.write("\n[bold orange]LAST LOOP RUN STATUS[/bold orange]")
+        self._separator()
+        rows = [
+            ("Topic",            ctx.topic),
+            ("Run ID",           ctx.run_id),
+            ("Elapsed",          f"{ctx.elapsed_s:.1f}s"),
+            ("Active loops",     ", ".join(ctx.active_loops)),
+            ("Completed loops",  ", ".join(ctx.completed_loops)),
+            ("Paper written",    "yes" if ctx.paper_written else "no"),
+            ("Guide written",    "yes" if ctx.guide_written else "no"),
+            ("Word count",       str(ctx.word_count)),
+            ("Grounding",        f"{ctx.grounding_ratio:.0%} ({ctx.grounding_tagged}/{ctx.grounding_total})"),
+            ("Atoms collected",  str(len(ctx.atoms))),
+            ("Drafts generated", str(len(ctx.drafts))),
+            ("Failures",         str(len(ctx.failures)) if ctx.failures else "none"),
+        ]
+        for label, value in rows:
+            color = "green" if "yes" in value else "red" if "no" == value else "white"
+            self.chat_log.write(f"  [bold cyan]{label:<20}[/bold cyan]  [bold {color}]{value}[/bold {color}]")
+        self._separator()
+        self.chat_log.write("")
+
+    def _get_all_atoms(self) -> list:
+        if self._vault_session:
+            atoms = []
+            for rag in self._vault_session.papers.values():
+                atoms.extend(getattr(rag, "atoms", []))
+            return atoms
+        elif self.rag:
+            return getattr(self.rag, "atoms", [])
+        return []
+
+    # ── Loop Agent Dispatch Adapters ──────────────────────────
+
+    def _loop_dispatch_agent12(self, queries: list) -> list:
+        try:
+            from agents.agent12_websearch import search_web
+            result = search_web(
+                topic=" ".join(queries[:2]),
+                queries_override=queries,
+            )
+            return result.get("sources", [])
+        except Exception as e:
+            self.call_from_thread(self._warn, f"Agent 12 error: {e}")
+            return []
+
+    def _loop_dispatch_agent13(self, **kwargs) -> dict:
+        from agents import agent13_paper_writer as a13
+
+        topic       = kwargs.get("topic", "")
+        atoms       = kwargs.get("atoms", [])
+        if not atoms:
+            atoms = self._get_all_atoms()
+        web_sources = kwargs.get("web_sources", [])
+        venue       = kwargs.get("venue", self._venue)
+        doc_type    = kwargs.get("doc_type", self._article_type)
+        extra_instr = kwargs.get("extra_instruction", "")
+
+        paper_text = kwargs.get("paper_text", "")
+        revision_flags = kwargs.get("revision_flags", [])
+        instruction = kwargs.get("instruction", "")
+        if paper_text and (revision_flags or instruction):
+            extra_instr = (extra_instr + "\n" + instruction).strip()
+
+        web_evidence = {"sources": web_sources}
+        try:
+            result = a13.write_paper(
+                topic=topic,
+                venue=venue,
+                article_type=doc_type,
+                atoms=atoms,
+                web_evidence=web_evidence,
+                extra_instruction=extra_instr,
+            )
+            return {
+                "paper_text":       result.get("full_text", ""),
+                "grounding_ratio":  result.get("audit", {}).get("grounding_ratio", 0.0),
+                "tagged":           result.get("audit", {}).get("grounded_sentences", 0),
+                "total":            result.get("audit", {}).get("total_sentences", 0),
+                "word_count":       result.get("word_count", 0),
+                "agent_result":     result,
+            }
+        except Exception as e:
+            self.call_from_thread(self._warn, f"Agent 13 error: {e}")
+            return {"paper_text": paper_text, "grounding_ratio": 0.0}
+
+    def _loop_dispatch_agent14(self, **kwargs) -> dict:
+        from agents import agent14_implementation_guide as a14
+        try:
+            result = a14.guide_implementation(
+                innovation=kwargs.get("topic", ""),
+                narrative=kwargs.get("paper_text", ""),
+                web_evidence={"sources": kwargs.get("web_sources", [])},
+                researcher_level=kwargs.get("level", self._researcher_level),
+            )
+            return {
+                "guide_text": result.get("full_text", ""),
+                "steps":      [],
+                "word_count": len(result.get("full_text", "").split()),
+            }
+        except Exception as e:
+            self.call_from_thread(self._warn, f"Agent 14 error: {e}")
+            return {"guide_text": ""}
+
+    def _loop_dispatch_agent7(self, paper_text: str) -> list:
+        try:
+            from agents import agent7_contradiction as a7
+            from db.triple_store import TripleStore
+            ts = TripleStore([])
+            result = a7.detect([], ts, paper_text)
+            flags = []
+            for c in result.get("llm_contradictions", []):
+                flags.append(
+                    f"{c.get('type', 'logical')} conflict: "
+                    f"{c.get('claim_a', '')} vs {c.get('claim_b', '')}"
+                )
+            return flags
+        except Exception as e:
+            self.call_from_thread(self._warn, f"Agent 7 error: {e}")
+            return []
+
+    def _loop_dispatch_agent11(self, drafts: list) -> dict:
+        if not drafts:
+            return {"paper_text": ""}
+        best = max(drafts, key=lambda d: d.get("grounding_ratio", 0.0))
+        return {"paper_text": best.get("paper_text", "")}
+
+    def _loop_dispatch_grounding_audit(self, paper_text: str) -> dict:
+        import re as _re
+        sentences = _re.split(r"(?<=[.!?])\s+", paper_text)
+        tagged = sum(1 for s in sentences if _re.search(r"\[\s*[AW]\s*:\s*[^\]]+\]", s))
+        total = max(len(sentences), 1)
+        return {"ratio": tagged / total, "tagged": tagged, "total": total}
 
     # ── Result renderers ──────────────────────────────────────
 

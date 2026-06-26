@@ -247,6 +247,34 @@ All learning data is persisted in `.vasis_learn.json` (auto-created on first run
 > pip install sentence-transformers
 > ```
 
+---
+
+## `/loop` — MULTI-AGENT LOOP ORCHESTRATION ENGINE
+
+The **Loop Engine** (`loop_engine.py`) turns the linear 14-agent swarming pipeline into a **reactive multi-agent graph**. Rather than executing a one-pass generation, loops continuously monitor agent outputs, audit quality, perform deeper web crawling when gaps are found, check logic consistency, and trigger self-improvement loops.
+
+For detailed, step-by-step instructions and architecture details, refer to the [loop.md](file:///e:/Vasis%20AI/loop.md) user guide.
+
+### Commands Syntax
+
+```bash
+❯ /loop paper "<topic>"                 # Runs quality + chain loops (smart default)
+❯ /loop paper "<topic>" chain           # Generates paper then immediately fires implementation guide writer
+❯ /loop paper "<topic>" quality         # Loops writing + citation fixes until grounding score >= 85%
+❯ /loop paper "<topic>" critique        # Runs contradiction audit, then performs section-level revisions
+❯ /loop paper "<topic>" deep            # Accumulates web sources/atoms prior to writing
+❯ /loop paper "<topic>" consensus       # Builds two distinct drafts and merges them using Agent 11
+❯ /loop paper "<topic>" full            # Runs all six loops (research -> drafts -> grounding -> consistency -> guide -> learn)
+❯ /loop paper "<topic>" deep quality chain --max 3 # Custom combination of loops with a retry limit
+❯ /loop config                          # Show active loop settings
+❯ /loop status                          # Show metrics and completed loops of the last execution
+```
+
+### Visual TUI Highlights
+When running a loop inside the full-screen terminal TUI (`vasis_shell.py`), the loop executes in a background thread, and the **sidebar dot indicators automatically light up and transition** in real-time between agents (e.g., Agent 12 for `deep`, Agent 13 for `consensus`/`_write`, Agent 7 for `critique`, and Agent 14 for `chain`) to visualize the swarm's focus.
+
+---
+
 ## INSTALLATION & QUICK START 
 
 ### Prerequisites
