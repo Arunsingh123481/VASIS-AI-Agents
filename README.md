@@ -122,6 +122,131 @@ Detailed documentation of our architectural innovations can be found in [innovat
 
 ---
 
+## `/learn` — ADAPTIVE LEARNING ENGINE
+
+VASIS AI includes a built-in learning engine that **compounds knowledge over time**. Every paper you generate, every query you ask, and every correction you make teaches the system to produce better results on future runs.
+
+### How It Works
+
+The learn engine operates in **three modes** that work together automatically:
+
+| Mode | Trigger | What It Does |
+|------|---------|--------------|
+| **Passive** | Automatic | Every `/paper` and `/query` run is silently recorded. The engine tracks grounding ratios, failure patterns, and which sub-queries retrieved the most atoms. |
+| **Active** | `/learn <topic>` | Crawls the web via Agent 12 and permanently ingests high-quality atoms into a local vault. Next paper on that topic starts pre-loaded. |
+| **Feedback** | `/learn feedback` | Rate or correct the last generated paper section-by-section. Corrections marked "good" become high-trust learned atoms; hallucination flags become negative examples. |
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     LearnEngine                         │
+│                                                         │
+│   ┌─────────────┐   ┌──────────────┐   ┌────────────┐  │
+│   │  RunRecords  │   │ LearnedAtoms │   │ Corrections│  │
+│   │  (passive)   │   │  (active)    │   │ (feedback) │  │
+│   └──────┬──────┘   └──────┬───────┘   └─────┬──────┘  │
+│          │                 │                  │         │
+│          └─────────┬───────┘──────────────────┘         │
+│                    ▼                                    │
+│            TopicMatcher (Jaccard / Embeddings)           │
+│                    │                                    │
+│          ┌─────────┴─────────┐                          │
+│          ▼                   ▼                          │
+│   PreflightHints       ReviewDashboard                  │
+│   (before /paper)      (/learn review)                  │
+│                                                         │
+│   Store: .vasis_learn.json (auto-created)               │
+└─────────────────────────────────────────────────────────┘
+```
+
+### CLI Commands
+
+```bash
+❯ /learn                         # Show learning status and available modes
+❯ /learn <topic>                 # Crawl web and ingest atoms on a topic
+❯ /learn feedback                # Rate/correct the last generated paper
+❯ /learn review                  # Full learning dashboard
+```
+
+### When to Use Each Mode
+
+#### `/learn <topic>` — Pre-load before writing
+Use **before** running `/paper` on a topic you know the vault doesn't cover well:
+```bash
+❯ /learn attention transformer mechanisms
+  Learning about: attention transformer mechanisms
+  Searching web and ingesting results into vault…
+
+  ✓  Ingested 12 atoms on 'attention transformer mechanisms'
+     Trust: 8 high, 4 medium
+     These atoms will auto-load next time you write a paper on this topic.
+
+❯ /paper limitations of attention mechanisms
+  ┌─ learn  —  from 3 previous runs ─────────────────────────────┐
+  │  Seen 3 similar runs before  ·  avg grounding 61%            │
+  │  ⚠  Grounding-risk topic — citation injector will run        │
+  │  12 pre-loaded atoms from /learn vault                       │
+  │  Tip: Attention topics: cite Vaswani et al. [2017]           │
+  └──────────────────────────────────────────────────────────────┘
+```
+
+#### `/learn feedback` — After spotting issues
+Use **after** `/paper` when you notice hallucinations or weak sections:
+```bash
+❯ /learn feedback
+  Feedback mode — rate the last paper
+  For each section, mark: good / hallucinated / wrong_citation / unclear
+
+  ── Abstract ──
+  The Transformer model uses attention mechanisms…
+  [1] g=good  h=hallucinated  w=wrong_citation  u=unclear  skip: g
+
+  ── Methodology ──
+  We propose a hybrid approach combining MoE with dense layers…
+  [1] g=good  h=hallucinated  w=wrong_citation  u=unclear  skip: h
+
+  ✓ 2 corrections recorded. They'll improve the next paper on this topic.
+```
+
+#### `/learn review` — Monitor learning health
+Use **periodically** to check system learning patterns and identify weak topics:
+```bash
+❯ /learn review
+  Runs: 12  ·  Atoms learned: 47  ·  Corrections: 8  ·  Grounding fails: 5
+  Store: .vasis_learn.json  ·  Embeddings: off (pip install sentence-transformers)
+
+   Topic                          Runs   Avg grounding   Fails   Last seen
+   attention is all you need         4              0%       4   2026-06-22
+   convolutional neural networks     3             61%       2   2026-06-22
+   mixture of experts transformer    2             91%       0   2026-06-08
+
+  Grounding trend (last 10 runs):
+  ▁▁▃▃▅▆▅▆▃▃   06-08 → 06-22
+
+  Top failure causes:
+    5×  grounding_fail
+    3×  context_retrieval_failed
+
+  Pre-loaded atoms by topic:
+  ✓ attention transformer - 12 atoms   web   high-trust
+  ✓ convolutional neural networks - 8 atoms   web
+  ✓ mixture of experts - 6 atoms   feedback
+```
+
+### Data Store
+
+All learning data is persisted in `.vasis_learn.json` (auto-created on first run). This file stores:
+- **Run records** — every `/paper` and `/query` execution with grounding metrics
+- **Learned atoms** — web-sourced knowledge atoms with trust levels and usage counts
+- **Corrections** — user feedback mapped to specific sections and sentences
+- **Topic cache** — aggregated per-topic statistics for fast pre-flight lookups
+
+> **Tip:** Install `sentence-transformers` for semantic topic matching instead of keyword overlap:
+> ```bash
+> pip install sentence-transformers
+> ```
+
 ## INSTALLATION & QUICK START 
 
 ### Prerequisites

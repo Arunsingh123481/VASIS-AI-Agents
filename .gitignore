@@ -27,3 +27,6 @@ outputs/
 
 # Shell history
 .vasis_history
+
+# Learn engine runtime data
+.vasis_learn.json

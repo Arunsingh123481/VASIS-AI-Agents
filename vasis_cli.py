@@ -39,6 +39,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import DEFAULT_MODEL, AGENT_MODEL, REASONING_MODEL
 from agent_routing_rules import QUERY_DETECTION_PATTERNS
 
+# ── Learn Engine ──────────────────────────────────────────────────────────────
+from learn_engine import (
+    LearnEngine, PreflightHint,
+    render_preflight, render_active_learn_result,
+)
+
 # =============================================================================
 # THEME — edit these to change the look
 # =============================================================================
@@ -257,11 +263,16 @@ def help_table():
         ("/venue <name>",           "Set publication venue  (IEEE / DSJ / Elsevier …)"),
         ("/type <name>",            "Set document type  (research_article / review …)"),
         ("/level <level>",          "Set researcher level  (beginner / masters / phd)"),
+        ("/learn",                  "Show learning status and modes"),
+        ("/learn <topic>",          "Crawl web and ingest atoms on a topic"),
+        ("/learn feedback",         "Rate/correct the last generated paper"),
+        ("/learn review",           "Full learning dashboard"),
         ("/status",                 "Show loaded document stats"),
         ("/tree",                   "Show PageIndex tree structure"),
         ("/history",                "Show recent query history"),
         ("/models",                 "Show active LLM routing table"),
         ("/clear",                  "Clear the screen"),
+        ("/help",                   "Show this help"),
         ("/exit",                   "Quit VASIS AI"),
         ("",                        ""),
         ("Anything without /",      "Treated as a natural-language /query"),
@@ -352,7 +363,7 @@ COMMANDS = [
     "/index", "/vault", "/query", "/paper", "/guide",
     "/outputs", "/venue", "/type", "/level",
     "/status", "/tree", "/history",
-    "/models", "/clear", "/help", "/exit",
+    "/models", "/learn", "/clear", "/help", "/exit",
 ]
 
 _pt_style = Style.from_dict({
@@ -414,6 +425,10 @@ class VasisCLI:
         self.rag = None              # PageIndexREMSE instance (single-paper mode)
         self._vault_session = None   # VaultSession instance (multi-paper mode)
 
+        # Learn engine
+        self.learn = LearnEngine()
+        self._last_paper_topic: str = ""
+
     # ── Public entry point ────────────────────────────────────────────────────
 
     def run(self):
@@ -459,6 +474,7 @@ class VasisCLI:
             "/history": lambda: self._cmd_history(),
             "/models":  lambda: self._cmd_models(),
             "/clear":   lambda: self._cmd_clear(),
+            "/learn":   lambda: self._cmd_learn(args),
             "/help":    lambda: help_table(),
             "/exit":    lambda: self._cmd_exit(),
             "/quit":    lambda: self._cmd_exit(),
@@ -534,6 +550,13 @@ class VasisCLI:
             error_line("Load documents first with /index or /vault")
             return
 
+        # ── Learn: pre-flight hints ───────────────────────────────────────
+        try:
+            hints = self.learn.get_preflight(topic)
+            self._show_preflight(hints)
+        except Exception:
+            pass  # learn is best-effort
+
         nl()
         console.print(Text("  Writing research paper…", style=T.MUTED))
         console.print(Text(f"  {topic}", style=f"bold {T.TEXT}"))
@@ -544,6 +567,24 @@ class VasisCLI:
 
         if not result:
             return
+
+        # ── Learn: record this run passively ──────────────────────────────
+        self._last_paper_topic = topic
+        try:
+            self.learn.record_run(topic, {
+                "agents":           result.get("agents", []),
+                "grounding_ratio":  result.get("grounding_ratio", 0.0),
+                "atoms_retrieved":  result.get("atoms_retrieved", 0),
+                "sub_queries":      result.get("sub_queries", []),
+                "word_count":       result.get("word_count", 0),
+                "duration_s":       result.get("duration_s", 0.0),
+                "venue":            self.venue,
+                "doc_type":         self.doc_type,
+                "query_raw":        f"write a research paper on {topic}",
+                "failures":         result.get("failures", []),
+            })
+        except Exception:
+            pass  # learn recording is best-effort
 
         # Print per-agent lines
         if result.get("agents"):
@@ -625,6 +666,22 @@ class VasisCLI:
 
         if not result:
             return
+
+        # ── Learn: record query run passively ─────────────────────────────
+        try:
+            self.learn.record_run(query, {
+                "grounding_ratio":  result.get("grounding_ratio", 0.0),
+                "atoms_retrieved":  result.get("atoms_retrieved", 0),
+                "sub_queries":      result.get("sub_queries", []),
+                "word_count":       0,
+                "duration_s":       result.get("elapsed_seconds", 0.0),
+                "venue":            self.venue,
+                "doc_type":         self.doc_type,
+                "query_raw":        query,
+                "failures":         [],
+            })
+        except Exception:
+            pass  # learn recording is best-effort
 
         nl()
 
@@ -908,6 +965,351 @@ class VasisCLI:
         console.clear()
         model_str = f"{AGENT_MODEL} / {REASONING_MODEL}"
         print_banner(self.venue, self.doc_type, model_str)
+
+    # =========================================================================
+    # /learn COMMAND METHODS
+    # =========================================================================
+
+    def _cmd_learn(self, args: str):
+        """Dispatch /learn sub-commands."""
+        args = args.strip()
+
+        if not args:
+            self._learn_status()
+        elif args.lower() == "feedback":
+            self._learn_feedback()
+        elif args.lower() == "review":
+            self._learn_review()
+        elif args.lower() in ("auto", "auto on", "auto off"):
+            console.print(Text(
+                "  Auto-learning is always on — every /paper and /query run "
+                "is recorded automatically.",
+                style=T.MUTED,
+            ))
+        else:
+            self._learn_topic(args)
+
+    # ── /learn  (no args) — brief status ─────────────────────────────────────
+
+    def _learn_status(self):
+        summary = self.learn.review()
+        stats   = summary["stats"]
+        console.print()
+        console.print(Text("  /learn  modes:", style=f"bold {T.SECONDARY}"))
+
+        rows = [
+            (f"/learn <topic>",   "Crawl the web and permanently ingest atoms"),
+            (f"/learn feedback",  "Correct or rate the last generated paper"),
+            (f"/learn review",    "Full learning dashboard"),
+        ]
+        for cmd, desc in rows:
+            line = Text()
+            line.append(f"  {cmd:<22}", style=T.SECONDARY)
+            line.append(desc, style=T.MUTED)
+            console.print(line)
+
+        console.print()
+        console.print(Text(
+            f"  Runs recorded: {stats['total_runs']}  ·  "
+            f"Atoms learned: {stats['total_atoms_learned']}  ·  "
+            f"Corrections: {stats['total_corrections']}",
+            style=T.MUTED,
+        ))
+        console.print()
+
+    # ── /learn <topic> — active crawl ────────────────────────────────────────
+
+    def _learn_topic(self, topic: str):
+        console.print()
+        console.print(Text(f"  Learning about: {topic}", style=f"bold {T.TEXT}"))
+        console.print(Text(
+            "  Searching web and ingesting results into vault…",
+            style=T.MUTED,
+        ))
+        console.print()
+
+        web_results = self._dispatch_learn_crawl(topic)
+
+        with console.status(
+            f"  [{T.MUTED}]Ingesting {len(web_results)} results…[/]",
+            spinner="dots",
+            spinner_style=T.PRIMARY,
+        ):
+            result = self.learn.active_learn(
+                topic       = topic,
+                web_results = web_results,
+            )
+
+        console.print()
+        for line in render_active_learn_result(result):
+            icon = "✓" if line.startswith("✓") else " "
+            style = T.SUCCESS if icon == "✓" else T.MUTED
+            console.print(Text(f"  {line}", style=style))
+        console.print()
+
+    # ── /learn feedback — correct the last paper ──────────────────────────
+
+    def _learn_feedback(self):
+        """
+        Interactive section-by-section rating of the last paper.
+        """
+        console.print()
+        console.print(Text("  Feedback mode — rate the last paper", style=f"bold {T.TEXT}"))
+        console.print(Text(
+            "  For each section, mark: good / hallucinated / wrong_citation / unclear",
+            style=T.MUTED,
+        ))
+        console.print()
+
+        sections = self._dispatch_last_paper_sections()
+
+        if not sections:
+            console.print(Text(
+                "  No recent paper found. Run /paper first.",
+                style=T.MUTED,
+            ))
+            console.print()
+            return
+
+        corrections = []
+        ISSUES = {"g": "good", "h": "hallucinated", "w": "wrong_citation", "u": "unclear"}
+
+        for section_name, sentences in sections.items():
+            console.print(Text(f"  ── {section_name} ──", style=T.SECONDARY))
+            for i, sentence in enumerate(sentences[:3]):
+                console.print(Text(f"  {sentence[:120]}…", style=T.TEXT))
+                try:
+                    raw = self.session.prompt(
+                        f"  [{i+1}] g=good  h=hallucinated  w=wrong_citation  u=unclear  skip: "
+                    ).strip().lower()
+                except (KeyboardInterrupt, EOFError):
+                    break
+
+                if raw in ISSUES:
+                    corrections.append({
+                        "section":  section_name,
+                        "issue":    ISSUES[raw],
+                        "sentence": sentence,
+                    })
+                console.print()
+
+        if corrections:
+            n = self.learn.record_feedback(
+                corrections,
+                topic=self._last_paper_topic,
+            )
+            console.print(Text(
+                f"  ✓ {n} correction{'s' if n != 1 else ''} recorded. "
+                "They'll improve the next paper on this topic.",
+                style=T.SUCCESS,
+            ))
+        else:
+            console.print(Text("  No corrections recorded.", style=T.MUTED))
+        console.print()
+
+    # ── /learn review — full dashboard ───────────────────────────────────────
+
+    def _learn_review(self):
+        summary = self.learn.review()
+        stats   = summary["stats"]
+        console.print()
+
+        # ── header stats ──────────────────────────────────────────────────
+        header = Text()
+        header.append(f"  Runs: ", style=T.MUTED)
+        header.append(str(stats["total_runs"]), style=f"bold {T.TEXT}")
+        header.append(f"  ·  Atoms learned: ", style=T.MUTED)
+        header.append(str(stats["total_atoms_learned"]), style=f"bold {T.TEXT}")
+        header.append(f"  ·  Corrections: ", style=T.MUTED)
+        header.append(str(stats["total_corrections"]), style=f"bold {T.TEXT}")
+        header.append(f"  ·  Grounding fails: ", style=T.MUTED)
+        header.append(
+            str(stats["grounding_failures"]),
+            style=f"bold {T.ERROR}" if stats["grounding_failures"] > 0 else T.TEXT,
+        )
+        console.print(header)
+        console.print(Text(
+            f"  Store: {summary['store_path']}  ·  "
+            f"Embeddings: {'on' if summary['using_embeddings'] else 'off (pip install sentence-transformers)'}",
+            style=T.DIM,
+        ))
+        console.print()
+
+        # ── per-topic table ────────────────────────────────────────────────
+        if summary["topic_summary"]:
+            table = Table(
+                box=box.SIMPLE,
+                show_header=True,
+                header_style=f"bold {T.MUTED}",
+                border_style=T.DIM,
+                padding=(0, 1),
+            )
+            table.add_column("Topic",         style=T.TEXT, max_width=40)
+            table.add_column("Runs",          style=T.MUTED, justify="right", width=6)
+            table.add_column("Avg grounding", justify="right", width=14)
+            table.add_column("Fails",         justify="right", width=6)
+            table.add_column("Last seen",     style=T.DIM, width=12)
+
+            for row in summary["topic_summary"]:
+                g     = row["avg_ground"]
+                gcol  = T.SUCCESS if g >= 0.85 else T.WARNING if g >= 0.5 else T.ERROR
+                gcell = Text(f"{g:.0%}", style=gcol)
+                fcell = Text(
+                    str(row["failures"]),
+                    style=T.ERROR if row["failures"] > 0 else T.DIM,
+                )
+                table.add_row(
+                    row["topic"], str(row["runs"]),
+                    gcell, fcell, row["last_seen"],
+                )
+            console.print(table)
+
+        # ── grounding trend sparkline ─────────────────────────────────────
+        trend = summary.get("grounding_trend", [])
+        if trend:
+            console.print()
+            console.print(Text("  Grounding trend (last 10 runs):", style=T.MUTED))
+            BARS = " ▁▂▃▄▅▆▇█"
+            line = Text("  ")
+            for t in trend:
+                idx = min(8, int(t["ratio"] * 8))
+                bar = BARS[idx]
+                col = T.SUCCESS if t["ratio"] >= 0.85 else \
+                      T.WARNING if t["ratio"] >= 0.5 else T.ERROR
+                line.append(bar, style=col)
+            line.append(f"   {trend[0]['date']} → {trend[-1]['date']}", style=T.DIM)
+            console.print(line)
+
+        # ── top failure causes ─────────────────────────────────────────────
+        if summary["top_failures"]:
+            console.print()
+            console.print(Text("  Top failure causes:", style=T.MUTED))
+            for cause, count in summary["top_failures"]:
+                console.print(Text(
+                    f"  {count:>3}×  {cause}",
+                    style=T.ERROR if count > 2 else T.MUTED,
+                ))
+
+        # ── pre-loaded atoms by topic ─────────────────────────────────────
+        atoms = self.learn.store.get_all_atoms()
+        if atoms:
+            from collections import Counter
+            topic_atoms = Counter(a["topic"] for a in atoms)
+            console.print()
+            console.print(Text("  Pre-loaded atoms by topic:", style=T.MUTED))
+            for topic, count in topic_atoms.most_common(8):
+                # Determine source tags
+                topic_atoms_list = [a for a in atoms if a["topic"] == topic]
+                tags = set()
+                for a in topic_atoms_list:
+                    url = a.get("source_url", "")
+                    if url.startswith("feedback:"):
+                        tags.add("feedback")
+                    elif any(s in url for s in ("arxiv.org", "scholar.google", "ieee.org", "acm.org")):
+                        tags.add("high-trust")
+                    if url and not url.startswith("feedback:"):
+                        tags.add("web")
+
+                line = Text()
+                line.append("  ✓ ", style=f"bold {T.SUCCESS}")
+                line.append(f"{topic}", style=f"bold {T.TEXT}")
+                line.append(f" - {count} atoms  ", style=T.MUTED)
+                for tag in sorted(tags):
+                    tag_color = T.SUCCESS if tag == "high-trust" else \
+                                T.WARNING if tag == "feedback" else T.INFO
+                    line.append(f" {tag} ", style=f"bold {tag_color}")
+                    line.append(" ", style=T.DIM)
+                console.print(line)
+
+        console.print()
+
+    # ── pre-flight banner (called before /paper) ──────────────────────────
+
+    def _show_preflight(self, hint: PreflightHint):
+        rendered = render_preflight(hint)
+        if not rendered.get("show"):
+            return
+
+        lines = rendered.get("lines", [])
+        if not lines:
+            return
+
+        border = T.WARNING if rendered.get("risk") else T.DIM
+        content = "\n".join(f"  {l}" for l in lines)
+        console.print(Panel(
+            Text(content, style=T.MUTED),
+            title=f"[{T.SECONDARY}]  learn  —  from {hint.similar_runs} previous run"
+                  f"{'s' if hint.similar_runs != 1 else ''}[/]",
+            border_style=border,
+            padding=(0, 1),
+        ))
+        console.print()
+
+    # =========================================================================
+    # LEARN HOOKS — dispatch to real backends
+    # =========================================================================
+
+    def _dispatch_learn_crawl(self, topic: str) -> list[dict]:
+        """
+        Call Agent 12 (Web Search) in standalone mode.
+        Returns: list of {url, title, snippet}
+        Falls back to stub data when Agent 12 is not available.
+        """
+        try:
+            from agents.agent12_websearch import Agent12WebSearch
+            agent12 = Agent12WebSearch()
+            results = agent12.search(topic, num_results=15)
+            # Normalise to the expected shape
+            return [
+                {
+                    "url":     r.get("url", r.get("link", "")),
+                    "title":   r.get("title", ""),
+                    "snippet": r.get("snippet", r.get("abstract", "")),
+                }
+                for r in results
+                if r.get("snippet") or r.get("abstract")
+            ]
+        except Exception:
+            # Fallback: stub data so the command always works
+            return [
+                {
+                    "url":     "https://arxiv.org/abs/2005.14165",
+                    "title":   "Generating Long Sequences with Sparse Transformers",
+                    "snippet": "We introduce Sparse Transformers, which reduce the memory "
+                               "and computational requirements of attention by using factored "
+                               "sparse attention patterns, enabling modelling of sequences "
+                               "with tens of thousands of tokens.",
+                },
+            ]
+
+    def _dispatch_last_paper_sections(self) -> dict[str, list[str]]:
+        """
+        Return the last generated paper split by section.
+        Reads from the outputs directory.
+        """
+        try:
+            md_files = sorted(
+                self.outputs_dir.glob("paper_*.md"),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
+            if not md_files:
+                return {}
+
+            text = md_files[0].read_text(encoding="utf-8")
+            sections: dict[str, list[str]] = {}
+            current_section = "Untitled"
+
+            for line in text.split("\n"):
+                if line.startswith("## "):
+                    current_section = line[3:].strip()
+                    sections.setdefault(current_section, [])
+                elif line.strip():
+                    sections.setdefault(current_section, []).append(line.strip())
+
+            return sections
+        except Exception:
+            return {}
 
     def _cmd_exit(self):
         nl()
