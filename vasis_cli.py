@@ -998,9 +998,9 @@ class VasisCLI:
         console.print(Text("  /learn  modes:", style=f"bold {T.SECONDARY}"))
 
         rows = [
-            (f"/learn <topic>",   "Crawl the web and permanently ingest atoms"),
-            (f"/learn feedback",  "Correct or rate the last generated paper"),
-            (f"/learn review",    "Full learning dashboard"),
+            ("/learn <topic>",   "Crawl the web and permanently ingest atoms"),
+            ("/learn feedback",  "Correct or rate the last generated paper"),
+            ("/learn review",    "Full learning dashboard"),
         ]
         for cmd, desc in rows:
             line = Text()
@@ -1116,13 +1116,13 @@ class VasisCLI:
 
         # ── header stats ──────────────────────────────────────────────────
         header = Text()
-        header.append(f"  Runs: ", style=T.MUTED)
+        header.append("  Runs: ", style=T.MUTED)
         header.append(str(stats["total_runs"]), style=f"bold {T.TEXT}")
-        header.append(f"  ·  Atoms learned: ", style=T.MUTED)
+        header.append("  ·  Atoms learned: ", style=T.MUTED)
         header.append(str(stats["total_atoms_learned"]), style=f"bold {T.TEXT}")
-        header.append(f"  ·  Corrections: ", style=T.MUTED)
+        header.append("  ·  Corrections: ", style=T.MUTED)
         header.append(str(stats["total_corrections"]), style=f"bold {T.TEXT}")
-        header.append(f"  ·  Grounding fails: ", style=T.MUTED)
+        header.append("  ·  Grounding fails: ", style=T.MUTED)
         header.append(
             str(stats["grounding_failures"]),
             style=f"bold {T.ERROR}" if stats["grounding_failures"] > 0 else T.TEXT,
@@ -1235,7 +1235,7 @@ class VasisCLI:
             return
 
         border = T.WARNING if rendered.get("risk") else T.DIM
-        content = "\n".join(f"  {l}" for l in lines)
+        content = "\n".join(f"  {ln}" for ln in lines)
         console.print(Panel(
             Text(content, style=T.MUTED),
             title=f"[{T.SECONDARY}]  learn  —  from {hint.similar_runs} previous run"
@@ -1729,8 +1729,8 @@ class VasisCLI:
         if not impl_result:
             return []
 
-        guide = impl_result.get("guide", {})
-        timings = impl_result.get("timings", {})
+        _ = impl_result.get("guide", {})
+        _ = impl_result.get("timings", {})
 
         step_titles = [
             "Breaking down innovation",

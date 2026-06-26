@@ -43,10 +43,10 @@ import time
 import os
 import tempfile
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional, Callable
-from collections import defaultdict, Counter
-from dataclasses import dataclass, asdict, field
+from collections import Counter
+from dataclasses import dataclass, asdict
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -471,7 +471,7 @@ class LearnEngine:
         runs     = self.store.get_runs()
         cache    = self.store.get_topic_cache()
         atoms    = self.store.get_all_atoms()
-        topic_k  = _topic_key(topic)
+        _  = _topic_key(topic)  # reserved for future direct-match lookups
 
         # ── find similar past topics ────────────────────────────────────────
         past_topics = list(set(r["topic"] for r in runs))
@@ -633,7 +633,7 @@ class LearnEngine:
                         {"source": url, "topic": topic,
                          "atom_id": atom_id, "trust": trust},
                     )
-                except Exception as e:
+                except Exception:
                     pass   # vault ingestion is best-effort
 
         return {
@@ -930,7 +930,8 @@ def render_active_learn_result(result: dict) -> list[str]:
 # =============================================================================
 
 if __name__ == "__main__":
-    import tempfile, shutil
+    import tempfile
+    import shutil
 
     # use a temp store so the test doesn't touch .vasis_learn.json
     tmp_dir = tempfile.mkdtemp()
