@@ -1274,10 +1274,12 @@ class VasisApp(App):
 
     @work(exclusive=True, thread=True)
     def _run_loop_worker(self, topic: str, loop_types: list, max_iter: int) -> None:
+        self._loop_active_ctx = None
         self.call_from_thread(self._set_busy, True, "LOOP ACTIVE", "yellow")
         self.call_from_thread(self._info, f"Running looped paper pipeline...")
 
         def on_status(level, msg, ctx):
+            self._loop_active_ctx = ctx
             icons = {
                 "start": "◆", "done": "✓", "skip": "—",
                 "iter": "·", "auto": "⚡", "warn": "⚠", "error": "✗",
@@ -1465,6 +1467,13 @@ class VasisApp(App):
         if not atoms:
             atoms = self._get_all_atoms()
         web_sources = kwargs.get("web_sources", [])
+        if not web_sources:
+            self.call_from_thread(self._info, "Empty web sources — dynamically fetching fallback web sources using Agent 12...")
+            web_sources = self._loop_dispatch_agent12([topic])
+            active_ctx = getattr(self, '_loop_active_ctx', None)
+            if active_ctx:
+                active_ctx.web_sources = web_sources
+
         venue       = kwargs.get("venue", self._venue)
         doc_type    = kwargs.get("doc_type", self._article_type)
         extra_instr = kwargs.get("extra_instruction", "")
@@ -1499,11 +1508,23 @@ class VasisApp(App):
 
     def _loop_dispatch_agent14(self, **kwargs) -> dict:
         from agents import agent14_implementation_guide as a14
+        topic = kwargs.get("topic", "")
+        web_sources = kwargs.get("web_sources", [])
+        if not web_sources:
+            active_ctx = getattr(self, '_loop_active_ctx', None)
+            if active_ctx and active_ctx.web_sources:
+                web_sources = active_ctx.web_sources
+            else:
+                self.call_from_thread(self._info, "Empty web sources — dynamically fetching fallback web sources using Agent 12...")
+                web_sources = self._loop_dispatch_agent12([topic])
+                if active_ctx:
+                    active_ctx.web_sources = web_sources
+
         try:
             result = a14.guide_implementation(
-                innovation=kwargs.get("topic", ""),
+                innovation=topic,
                 narrative=kwargs.get("paper_text", ""),
-                web_evidence={"sources": kwargs.get("web_sources", [])},
+                web_evidence={"sources": web_sources},
                 researcher_level=kwargs.get("level", self._researcher_level),
             )
             return {

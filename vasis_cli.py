@@ -1295,7 +1295,9 @@ class VasisCLI:
         ))
         nl()
 
+        self._loop_active_ctx = None
         def on_status(level, msg, ctx):
+            self._loop_active_ctx = ctx
             icons = {
                 "start": "◆", "done": "✓", "skip": "—",
                 "iter": "·", "auto": "⚡", "warn": "⚠", "error": "✗",
@@ -1489,6 +1491,13 @@ class VasisCLI:
         if not atoms:
             atoms = self._get_all_atoms()
         web_sources = kwargs.get("web_sources", [])
+        if not web_sources:
+            console.print(Text("  * Empty web sources — dynamically fetching fallback web sources using Agent 12...", style=T.INFO))
+            web_sources = self._loop_dispatch_agent12([topic])
+            active_ctx = getattr(self, '_loop_active_ctx', None)
+            if active_ctx:
+                active_ctx.web_sources = web_sources
+
         venue       = kwargs.get("venue", self.venue)
         doc_type    = kwargs.get("doc_type", self.doc_type)
         extra_instr = kwargs.get("extra_instruction", "")
@@ -1528,11 +1537,23 @@ class VasisCLI:
     def _loop_dispatch_agent14(self, **kwargs) -> dict:
         """Agent 14 implementation guide — maps loop engine kwargs."""
         from agents import agent14_implementation_guide as a14
+        topic = kwargs.get("topic", "")
+        web_sources = kwargs.get("web_sources", [])
+        if not web_sources:
+            active_ctx = getattr(self, '_loop_active_ctx', None)
+            if active_ctx and active_ctx.web_sources:
+                web_sources = active_ctx.web_sources
+            else:
+                console.print(Text("  * Empty web sources — dynamically fetching fallback web sources using Agent 12...", style=T.INFO))
+                web_sources = self._loop_dispatch_agent12([topic])
+                if active_ctx:
+                    active_ctx.web_sources = web_sources
+
         try:
             result = a14.guide_implementation(
-                innovation=kwargs.get("topic", ""),
+                innovation=topic,
                 narrative=kwargs.get("paper_text", ""),
-                web_evidence={"sources": kwargs.get("web_sources", [])},
+                web_evidence={"sources": web_sources},
                 researcher_level=kwargs.get("level", self.level),
             )
             return {
