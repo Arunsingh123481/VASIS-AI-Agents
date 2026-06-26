@@ -469,12 +469,13 @@ Return JSON:
         if not _a12_active and "agent12_websearch" not in _display_skipping:
             _display_skipping.append("agent12_websearch (paper/guide only)")
 
-        print_msg(f"\n{'='*50}")
-        print_msg(f"[Agent10] Query type: {query_type.upper()}")
-        print_msg(f"[Agent10] Running: {_display_running}")
-        print_msg(f"[Agent10] Skipping: {_display_skipping}")
-        print_msg(f"[Agent10] Est. time: ~{routing['estimated_secs']}s")
-        print_msg(f"{'='*50}\n")
+        panel_content = (
+            f"[bold]Running:[/bold]    {_display_running}\n"
+            f"[bold]Skipping:[/bold]   {_display_skipping}\n"
+            f"[bold]Est. time:[/bold]  ~{routing['estimated_secs']}s"
+        )
+        from console_helper import print_panel
+        print_panel(panel_content, title=f"[Agent10] Query type: {query_type.upper()}")
 
         # ── STEP 2: WARM START ────────────────────────────────
         warm        = self.feedback_index.get_warm_start(

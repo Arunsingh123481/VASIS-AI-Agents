@@ -439,13 +439,14 @@ def guide_implementation(
     web_sources = web_evidence.get("sources", [])
     start_time = time.time()
 
-    print_msg(f"\n{'='*60}")
-    print_msg("[Agent14] IMPLEMENTATION GUIDE")
     _innov_display = innovation if len(innovation) <= 80 else innovation[:77] + "..."
-    print_msg(f"[Agent14] Innovation: {_innov_display}")
-    print_msg(f"[Agent14] Level: {researcher_level}")
-    print_msg(f"[Agent14] Web sources: {len(web_sources)}")
-    print_msg(f"{'='*60}\n")
+    panel_content = (
+        f"[bold]Innovation:[/bold]  {_innov_display}\n"
+        f"[bold]Level:[/bold]       {researcher_level}\n"
+        f"[bold]Web sources:[/bold] {len(web_sources)}"
+    )
+    from console_helper import print_panel
+    print_panel(panel_content, title="[Agent14] IMPLEMENTATION GUIDE")
 
     guide = {}
     timings = {}

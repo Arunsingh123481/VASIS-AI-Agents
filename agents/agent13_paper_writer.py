@@ -222,15 +222,53 @@ def _compute_section_trust(section_meta: dict) -> dict:
 
 def _print_section_trust_table(section_trust: dict) -> None:
     """Print a section-level grounding report table to the console."""
-    print_msg("\n[Agent13] Section-level grounding report:")
-    print_msg(f"{'─'*68}")
-    print_msg(f"  {'Section':<22} {'Trust':<28} {'Action'}")
-    print_msg(f"{'─'*68}")
-    for name, trust in section_trust.items():
-        label  = trust["label"]
-        action = trust["action"]
-        print_msg(f"  {name:<22} {label:<28} {action}")
-    print_msg(f"{'─'*68}\n")
+    from console_helper import RICH_AVAILABLE
+    if RICH_AVAILABLE:
+        from rich.table import Table
+        from console_helper import print_msg
+        
+        table = Table(
+            title="[Agent13] Section-Level Grounding Report",
+            title_style="bold cyan",
+            show_header=True,
+            header_style="bold magenta",
+            border_style="dim",
+        )
+        table.add_column("Section", style="bold white", width=22)
+        table.add_column("Trust", width=28)
+        table.add_column("Action")
+        
+        for name, trust in section_trust.items():
+            label  = trust["label"]
+            action = trust["action"]
+            
+            # Stylize labels for rich output
+            if "HIGH" in label:
+                label_styled = f"[bold green]{label}[/bold green]"
+                action_styled = f"[bold green]{action}[/bold green]"
+            elif "MEDIUM" in label:
+                label_styled = f"[bold yellow]{label}[/bold yellow]"
+                action_styled = f"[bold yellow]{action}[/bold yellow]"
+            elif "UNGROUNDED" in label or "LOW" in label:
+                label_styled = f"[bold red]{label}[/bold red]"
+                action_styled = f"[bold red]{action}[/bold red]"
+            else:
+                label_styled = label
+                action_styled = action
+                
+            table.add_row(name, label_styled, action_styled)
+        
+        print_msg(table)
+    else:
+        print_msg("\n[Agent13] Section-level grounding report:")
+        print_msg(f"{'─'*68}")
+        print_msg(f"  {'Section':<22} {'Trust':<28} {'Action'}")
+        print_msg(f"{'─'*68}")
+        for name, trust in section_trust.items():
+            label  = trust["label"]
+            action = trust["action"]
+            print_msg(f"  {name:<22} {label:<28} {action}")
+        print_msg(f"{'─'*68}\n")
 
 
 # ── GROUNDED SECTION WRITER (core) ───────────────────────────────────────────
@@ -686,17 +724,18 @@ def write_paper(
 
     start_time = time.time()
 
-    print_msg(f"\n{'='*60}")
-    print_msg("[Agent13] RESEARCH PAPER WRITER  (atoms-first strategy)")
     _topic_display = topic if len(topic) <= 80 else topic[:77] + "..."
-    print_msg(f"[Agent13] Topic:       {_topic_display}")
-    print_msg(f"[Agent13] Venue:       {venue} ({template.get('full_name', '')})")
-    print_msg(f"[Agent13] Type:        {config['label']}")
-    print_msg(f"[Agent13] Word limit:  {config['word_limit']}")
-    print_msg(f"[Agent13] Style:       {config['writing_style']}")
-    print_msg(f"[Agent13] Vault atoms: {len(atoms)}")
-    print_msg(f"[Agent13] Web sources: {len(web_sources)}")
-    print_msg(f"{'='*60}\n")
+    panel_content = (
+        f"[bold]Topic:[/bold]       {_topic_display}\n"
+        f"[bold]Venue:[/bold]       {venue} ({template.get('full_name', '')})\n"
+        f"[bold]Type:[/bold]        {config['label']}\n"
+        f"[bold]Word limit:[/bold]  {config['word_limit']}\n"
+        f"[bold]Style:[/bold]       {config['writing_style']}\n"
+        f"[bold]Vault atoms:[/bold] {len(atoms)}\n"
+        f"[bold]Web sources:[/bold] {len(web_sources)}"
+    )
+    from console_helper import print_panel
+    print_panel(panel_content, title="[Agent13] RESEARCH PAPER WRITER (atoms-first strategy)")
 
     # ── BUILD FACTUAL CLAIMS (atoms-first) ───────────────────
     print_msg("[Agent13] Building factual claims from vault atoms and web sources...")

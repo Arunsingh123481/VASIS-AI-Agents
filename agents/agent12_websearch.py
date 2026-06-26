@@ -272,10 +272,8 @@ def search_web(
     """
     start_time = time.time()
 
-    print_msg(f"\n{'='*50}")
-    print_msg("[Agent12] WEB SEARCH")
-    print_msg(f"[Agent12] Topic: {topic}")
-    print_msg(f"{'='*50}\n")
+    from console_helper import print_panel
+    print_panel(f"[bold]Topic:[/bold] {topic}", title="[Agent12] WEB SEARCH")
 
     # Step 1: Formulate queries
     if queries_override:
