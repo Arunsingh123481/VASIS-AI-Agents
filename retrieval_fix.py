@@ -234,8 +234,6 @@ def patch_threshold(
         return {"success": False, "error": f"File not found: {agent4_path}"}
 
     original = p.read_text(encoding="utf-8")
-    old_str  = str(ANCHOR_SCORE_THRESHOLD_ORIGINAL)
-    new_str  = str(new_threshold)
 
     # find all threshold-like occurrences
     # match patterns like: > 0.1, >= 0.1, threshold = 0.1, score > 0.1

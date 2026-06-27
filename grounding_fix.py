@@ -17,7 +17,6 @@ Fixes for the 0% grounding problem:
 """
 
 import re
-from typing import Optional
 
 
 # =============================================================================

@@ -19,7 +19,7 @@ def test_fix1_extract_retrieval_queries():
         "Write a research paper on the solutions of the limitations "
         "of attention is all you need"
     )
-    print(f"  Input:  'Write a research paper on the solutions of the limitations of attention is all you need'")
+    print("  Input:  'Write a research paper on the solutions of the limitations of attention is all you need'")
     print(f"  Output: {queries}")
 
     assert len(queries) >= 2, f"Expected >=2 queries, got {len(queries)}"
@@ -33,7 +33,7 @@ def test_fix1_extract_retrieval_queries():
 
     # Test 2: Short factual query should pass through
     queries2 = extract_retrieval_queries("transformer architecture self-attention")
-    print(f"  Input:  'transformer architecture self-attention'")
+    print("  Input:  'transformer architecture self-attention'")
     print(f"  Output: {queries2}")
     assert len(queries2) >= 1, "Should produce at least 1 query"
     print("  [OK] PASSED: Short queries pass through\n")

@@ -1,5 +1,7 @@
 """Full verification audit of all retrieval/grounding fixes."""
-import sys, os
+# ruff: noqa: E402
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 print("=" * 65)
@@ -18,7 +20,7 @@ try:
         "of attention is all you need"
     )
     raw_starts_write = any(q.lower().startswith("write") for q in test)
-    print(f"    extract_retrieval_queries() exists: YES")
+    print("    extract_retrieval_queries() exists: YES")
     print(f"    Strips instructional prefix:        {'YES' if not raw_starts_write else 'NO!'}")
     print(f"    Generates noun phrases:             YES ({len(test)} queries)")
     print(f"    Example: {test[:2]}")
@@ -40,7 +42,7 @@ print("[2] retrieval_fix.py (PageIndex re-indexing utility)")
 try:
     import retrieval_fix
     p = retrieval_fix.TUNED_PARAMS
-    print(f"    File exists and imports:             YES")
+    print("    File exists and imports:             YES")
     print(f"    max_pages_per_node:                  {p['max_pages_per_node']} (target: 2)")
     print(f"    max_tokens_per_node:                 {p['max_tokens_per_node']} (target: 6000)")
     print(f"    Has re_index():                      {hasattr(retrieval_fix, 're_index')}")
@@ -66,7 +68,7 @@ if threshold_rule:
     if not correct:
         all_ok = False
 else:
-    print(f"    NO THRESHOLD RULE FOUND!")
+    print("    NO THRESHOLD RULE FOUND!")
     all_ok = False
 
 # Check evaluator code
@@ -124,7 +126,7 @@ if os.path.exists("learn_engine.py"):
     for label, ok in checks6.items():
         print(f"    {label + ':':<40} {'YES' if ok else 'NO!'}")
 else:
-    print(f"    File exists:                        NO!")
+    print("    File exists:                        NO!")
     all_ok = False
 print()
 
@@ -142,7 +144,7 @@ if os.path.exists("loop_engine.py"):
     for label, ok in checks7.items():
         print(f"    {label + ':':<40} {'YES' if ok else 'NO!'}")
 else:
-    print(f"    File exists:                        NO!")
+    print("    File exists:                        NO!")
     all_ok = False
 print()
 
@@ -151,11 +153,11 @@ print("[8] vasis_cli.py (Claude Code style CLI)")
 if os.path.exists("vasis_cli.py"):
     with open("vasis_cli.py", "r", encoding="utf-8") as f:
         clic = f.read()
-    print(f"    File exists:                        YES")
+    print("    File exists:                        YES")
     print(f"    Has /learn command:                 {'YES' if '/learn' in clic else 'NO!'}")
     print(f"    Has /loop command:                  {'YES' if '/loop' in clic else 'NO!'}")
 else:
-    print(f"    File exists:                        NO!")
+    print("    File exists:                        NO!")
     all_ok = False
 print()
 
