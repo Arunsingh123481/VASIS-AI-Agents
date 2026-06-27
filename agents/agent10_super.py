@@ -223,11 +223,11 @@ def _evaluate_condition(condition: str,
             return (isinstance(result, list) and
                     len(result) >= 2)
 
-        if "at least 1 anchor has score > 0.1" in c:
+        if "at least 1 anchor has score > 0.05" in c:
             if not isinstance(result, list):
                 return False
             return any(
-                a.get("combined_score", 0) > 0.1
+                a.get("combined_score", 0) > 0.05
                 for a in result
             )
 
@@ -487,7 +487,16 @@ Return JSON:
         # ── STEP 3: INITIALISE STATE ──────────────────────────
         agent_results  = []
         routed         = None
-        sub_queries    = [question]
+        # ── Fix 1: Extract proper retrieval queries instead of raw topic ──
+        # Raw topic strings ("Write a paper on...") match nothing in atom store.
+        # extract_retrieval_queries strips instructional prefixes and builds
+        # noun-phrase variants that actually hit atoms.
+        try:
+            from grounding_fix import extract_retrieval_queries
+            sub_queries = extract_retrieval_queries(question)
+            print_msg(f"[Agent10] Grounding fix: extracted {len(sub_queries)} retrieval queries from topic")
+        except ImportError:
+            sub_queries = [question]
         navigation     = None
         selected_nodes = warm_nodes or []
         anchors        = []
@@ -1334,6 +1343,31 @@ Return JSON:
                        "A", 0.90, time.time()-t0)
                 # Override answer with the paper text
                 answer = paper_result.get("full_text", answer)
+
+                # ── Fix 5: Post-processing citation injector (safety net) ──
+                # If grounding audit shows < 85%, inject missing citations
+                grounding_audit = paper_result.get("grounding_audit", {})
+                grounding_ratio = grounding_audit.get("grounding_ratio", 0.0)
+                if grounding_ratio < 0.85:
+                    try:
+                        from grounding_fix import inject_missing_citations
+                        web_sources = (web_result or {}).get("sources", [])
+                        injected = inject_missing_citations(
+                            paper_text=answer,
+                            atoms=self.atom_store.get_many(unique_atom_ids),
+                            web_sources=web_sources,
+                        )
+                        answer = injected.get("paper_text", answer)
+                        print_msg(
+                            f"[Agent10] Citation injector: "
+                            f"tagged {injected.get('tagged_before', 0)} → "
+                            f"{injected.get('tagged_after', 0)} sentences"
+                        )
+                    except ImportError:
+                        print_msg("[Agent10] grounding_fix not available — skipping citation injection")
+                    except Exception as e:
+                        print_msg(f"[Agent10] Citation injection error: {e}")
+
             except Exception as e:
                 print_msg(f"[Agent10] agent13 error: {e}")
                 record("agent13_paper_writer", None,

@@ -38,7 +38,17 @@ SYSTEM_WRITER = (
     "Be precise, cite evidence, and follow the given venue format. "
     "Ground every claim in the provided evidence. "
     "Do not hallucinate facts or citations. "
-    "Use the evidence from vault atoms and web sources only."
+    "Use the evidence from vault atoms and web sources only. "
+    "\n\nHARD CITATION RULE: Every factual sentence MUST end with at least one "
+    "citation tag in square brackets using the exact citation_key provided "
+    "(e.g. [A:page_3_id42] or [W:url_slug]). "
+    "Sentences without citation tags will be REJECTED by the grounding audit. "
+    "\n\nEXAMPLE (correct): "
+    "'The Transformer replaces recurrence with self-attention [A:page_3_id42]. "
+    "This achieves SOTA on WMT 2014 En-De [A:page_5_id78].' "
+    "\n\nEXAMPLE (WRONG — will be rejected): "
+    "'The Transformer replaces recurrence with self-attention.' "
+    "\n\nTarget: >=85% of sentences must have citation tags."
 )
 
 SYSTEM_PLANNER = (

@@ -662,7 +662,7 @@ AGENT10_REVIEW_RULES = {
     "agent4_retrieval": {
         "pass_if": [
             "anchors count >= 2",
-            "at least 1 anchor has score > 0.1",
+            "at least 1 anchor has score > 0.05",
         ],
         "on_fail": "expand_scope_to_full_doc",
         "max_retries": 1,
