@@ -33,6 +33,7 @@ outputs/
 
 # Local documentation guides
 loop.md
+custom_agent.md
 
 # Local runtime database and histories
 .vasis_custom_agents.json

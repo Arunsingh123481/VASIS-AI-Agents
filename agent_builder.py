@@ -2034,6 +2034,7 @@ class AgentStudio:
         atoms:      list = None,
         web_results:list = None,
         fixed_agent_runner: Optional[Callable] = None,
+        smart_agent_runner: Optional[Callable] = None,
     ) -> dict:
         """
         Run a custom loop sequentially.
@@ -2042,6 +2043,12 @@ class AgentStudio:
         fixed_agent_runner(agent_id, topic, paper_text) -> str
             Optional: provide this to run fixed agents (01–14) within
             a custom loop.
+
+        smart_agent_runner(agent_id, topic) -> Optional[str]
+            Optional: provide this to try direct extraction BEFORE
+            falling back to LLM generation. If it returns a non-empty
+            string, that is used as the agent output (skipping the LLM).
+            If it returns None or "", the LLM fallback is used.
         """
         loop = self.store.get_loop(loop_id)
         if not loop:
@@ -2070,7 +2077,33 @@ class AgentStudio:
                 except Exception as e:
                     self._p(f"  ✗ Fixed agent {agent_id} failed: {e}", "error")
             else:
-                # run a custom agent
+                # ── Try smart extraction first (direct from indexed paper) ──
+                smart_output = None
+                if smart_agent_runner:
+                    try:
+                        smart_output = smart_agent_runner(agent_id, topic)
+                    except Exception:
+                        smart_output = None
+
+                if smart_output:
+                    # Direct extraction succeeded — use it (no LLM needed)
+                    import time as _t
+                    accumulated_text += "\n\n" + smart_output
+                    all_results[agent_id] = smart_output
+                    self._p(
+                        f"  ✓ /{agent_id}  0.0s  "
+                        f"{len(smart_output.split())} words  (direct extract)",
+                        "success",
+                    )
+                    # update agent stats
+                    agent = self.store.get_agent(agent_id)
+                    if agent:
+                        agent.run_count += 1
+                        agent.last_run = time.time()
+                        self.store.save_agent(agent)
+                    continue
+
+                # ── Fallback: LLM generation ───────────────────────────────
                 result = self.cmd_run_agent(
                     command     = agent_id,
                     topic       = topic,

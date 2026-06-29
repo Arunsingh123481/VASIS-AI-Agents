@@ -2420,17 +2420,43 @@ class VasisCLI:
             error_line(f"Usage: /loop {loop_name} \"your topic\"")
             return
 
+        # Strip quotes the user may have typed
+        topic = topic.strip('"').strip("'").strip()
+
         # Use "all" input type for loops — they benefit from maximum context
         paper_text, atoms, web_results = self._gather_smart_context(
             loop_name, topic, "all",
         )
 
+        # ── Build smart_agent_runner: tries direct extraction first ──────
+        from agent_builder import _slugify, AGENT_BLUEPRINTS
+
+        def _smart_runner(agent_id: str, agent_topic: str):
+            """
+            Try direct extraction from indexed paper atoms.
+            Returns extracted text or None (→ LLM fallback).
+            """
+            bp = AGENT_BLUEPRINTS.get(agent_id, {})
+            is_paper_section = bp.get("category") == "paper_section"
+            if not is_paper_section:
+                return None
+
+            matched_rag = self._match_vault_paper(agent_topic)
+            if not matched_rag:
+                return None
+
+            section_text = self._extract_section_from_paper(
+                agent_id, matched_rag
+            )
+            return section_text if section_text else None
+
         result = self.studio.cmd_run_loop(
-            loop_id     = loop_name,
-            topic       = topic,
-            paper_text  = paper_text,
-            atoms       = atoms,
-            web_results = web_results,
+            loop_id            = loop_name,
+            topic              = topic,
+            paper_text         = paper_text,
+            atoms              = atoms,
+            web_results        = web_results,
+            smart_agent_runner = _smart_runner,
         )
 
         if result.get("output_text"):
