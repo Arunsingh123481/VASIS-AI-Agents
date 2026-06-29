@@ -53,6 +53,9 @@ from loop_engine import (
     MAX_CRITIQUE_ROUNDS, CONSENSUS_DRAFTS,
 )
 
+# ── Custom Agent Studio ──────────────────────────────────────────────────────
+from agent_builder import AgentStudio, rich_print_fn
+
 # =============================================================================
 # THEME — edit these to change the look
 # =============================================================================
@@ -279,6 +282,17 @@ def help_table():
         ("/loop config",            "Show current loop settings"),
         ("/loop status",            "Show live loop state"),
         ("/loop help",              "Show detailed loop subcommands & presets"),
+        ("",                        ""),
+        ("── CUSTOM AGENT STUDIO ──", ""),
+        ("/build agent <name>",     "Create a custom research agent (wizard)"),
+        ("/my-agents",              "List fixed + custom agents"),
+        ("/my-loops",               "List custom agent loops"),
+        ("/connect a1 a2 …",        "Wire agents into a loop  (--name --quality)"),
+        ("/delete agent <name>",    "Delete a custom agent"),
+        ("/delete loop <name>",     "Delete a custom loop"),
+        ("/<custom> \"topic\"",       "Run a custom agent directly"),
+        ("/loop <loopname> topic",  "Run a custom agent loop"),
+        ("",                        ""),
         ("/status",                 "Show loaded document stats"),
         ("/tree",                   "Show PageIndex tree structure"),
         ("/history",                "Show recent query history"),
@@ -376,6 +390,8 @@ COMMANDS = [
     "/outputs", "/venue", "/type", "/level",
     "/status", "/tree", "/history",
     "/models", "/learn", "/loop", "/clear", "/help", "/exit",
+    # Custom Agent Studio commands
+    "/build", "/my-agents", "/my-loops", "/connect", "/delete",
 ]
 
 _pt_style = Style.from_dict({
@@ -386,8 +402,11 @@ _pt_style = Style.from_dict({
     "auto-suggestion":                    T.DIM,
 })
 
-def _make_session() -> PromptSession:
-    completer = WordCompleter(COMMANDS, ignore_case=True, sentence=True)
+def _make_session(extra_words: list = None) -> PromptSession:
+    words = list(COMMANDS)
+    if extra_words:
+        words.extend(extra_words)
+    completer = WordCompleter(words, ignore_case=True, sentence=True)
     history_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".vasis_history")
     return PromptSession(
         completer=completer,
@@ -441,11 +460,41 @@ class VasisCLI:
         self.learn = LearnEngine()
         self._last_paper_topic: str = ""
 
+        # Custom Agent Studio
+        self._init_agent_studio()
+
+    def _init_agent_studio(self):
+        """Initialise the Custom Agent Studio with LLM and Rich print adapter."""
+        try:
+            from llm.ollama_client import ask_llm
+            llm_fn = lambda prompt: ask_llm(prompt, model=REASONING_MODEL)
+        except Exception:
+            llm_fn = None   # works without LLM (template fallback)
+
+        self.studio = AgentStudio(
+            llm_fn     = llm_fn,
+            print_fn   = rich_print_fn(console),
+            store_path = Path(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                ".vasis_custom_agents.json",
+            )),
+        )
+
+    def _refresh_completer(self):
+        """Rebuild prompt-toolkit autocomplete with current custom agent names."""
+        extra = [f"/{name}" for name in self.studio.custom_command_names()]
+        if self.session:
+            words = list(COMMANDS) + extra
+            self.session.completer = WordCompleter(
+                words, ignore_case=True, sentence=True,
+            )
+
     # ── Public entry point ────────────────────────────────────────────────────
 
     def run(self):
         if self.session is None:
-            self.session = _make_session()
+            extra = [f"/{name}" for name in self.studio.custom_command_names()]
+            self.session = _make_session(extra_words=extra)
         model_str = f"{AGENT_MODEL} / {REASONING_MODEL}"
         print_banner(self.venue, self.doc_type, model_str)
         while True:
@@ -474,32 +523,44 @@ class VasisCLI:
         args = parts[1].strip() if len(parts) > 1 else ""
 
         dispatch = {
-            "/index":   lambda: self._cmd_index(args),
-            "/vault":   lambda: self._cmd_vault(args),
-            "/query":   lambda: self._dispatch_query(args),
-            "/paper":   lambda: self._cmd_paper(args),
-            "/guide":   lambda: self._cmd_guide(args),
-            "/outputs": lambda: self._cmd_outputs(),
-            "/venue":   lambda: self._cmd_venue(args),
-            "/type":    lambda: self._cmd_type(args),
-            "/level":   lambda: self._cmd_level(args),
-            "/status":  lambda: self._cmd_status(),
-            "/tree":    lambda: self._cmd_tree(),
-            "/history": lambda: self._cmd_history(),
-            "/models":  lambda: self._cmd_models(),
-            "/clear":   lambda: self._cmd_clear(),
-            "/learn":   lambda: self._cmd_learn(args),
-            "/loop":    lambda: self._cmd_loop(args),
-            "/help":    lambda: help_table(),
-            "/exit":    lambda: self._cmd_exit(),
-            "/quit":    lambda: self._cmd_exit(),
+            "/index":     lambda: self._cmd_index(args),
+            "/vault":     lambda: self._cmd_vault(args),
+            "/query":     lambda: self._dispatch_query(args),
+            "/paper":     lambda: self._cmd_paper(args),
+            "/guide":     lambda: self._cmd_guide(args),
+            "/outputs":   lambda: self._cmd_outputs(),
+            "/venue":     lambda: self._cmd_venue(args),
+            "/type":      lambda: self._cmd_type(args),
+            "/level":     lambda: self._cmd_level(args),
+            "/status":    lambda: self._cmd_status(),
+            "/tree":      lambda: self._cmd_tree(),
+            "/history":   lambda: self._cmd_history(),
+            "/models":    lambda: self._cmd_models(),
+            "/clear":     lambda: self._cmd_clear(),
+            "/learn":     lambda: self._cmd_learn(args),
+            "/loop":      lambda: self._cmd_loop(args),
+            "/help":      lambda: help_table(),
+            "/exit":      lambda: self._cmd_exit(),
+            "/quit":      lambda: self._cmd_exit(),
+            # Custom Agent Studio commands
+            "/build":     lambda: self._cmd_studio_build(args),
+            "/my-agents": lambda: self.studio.cmd_list_agents(),
+            "/my-loops":  lambda: self.studio.cmd_list_loops(),
+            "/connect":   lambda: self.studio.cmd_connect(args),
+            "/delete":    lambda: self._cmd_studio_delete(args),
         }
 
         fn = dispatch.get(cmd)
         if fn:
             fn()
         else:
-            error_line(f"Unknown command '{cmd}'.  Type /help for the list.")
+            # Dynamic dispatch: check if cmd matches a custom agent name
+            cmd_name = cmd.lstrip("/")
+            if cmd_name in self.studio.custom_command_names():
+                self._cmd_run_custom_agent(cmd_name, args)
+            # Check if the first arg to /loop is a custom loop name
+            else:
+                error_line(f"Unknown command '{cmd}'.  Type /help for the list.")
 
     # ── Commands ──────────────────────────────────────────────────────────────
 
@@ -1259,6 +1320,14 @@ class VasisCLI:
     # ── /loop entry ──────────────────────────────────────────────────────────
 
     def _cmd_loop(self, args: str):
+        # Check if the first word is a custom loop name
+        parts = args.strip().split(maxsplit=1)
+        if parts and parts[0].lower() in self.studio.custom_loop_names():
+            loop_name = parts[0].lower()
+            topic = parts[1].strip().strip('"\'') if len(parts) > 1 else ""
+            self._cmd_run_custom_loop(loop_name, topic)
+            return
+
         parsed = parse_loop_command(args)
 
         if parsed["special"]:
@@ -1684,6 +1753,97 @@ class VasisCLI:
             return sections
         except Exception:
             return {}
+
+    # =========================================================================
+    # CUSTOM AGENT STUDIO — command handlers
+    # =========================================================================
+
+    def _cmd_studio_build(self, args: str):
+        """Handle /build agent <name> and refresh autocomplete afterwards."""
+        parts = args.strip().split(maxsplit=1)
+        sub = parts[0].lower() if parts else ""
+        rest = parts[1].strip() if len(parts) > 1 else ""
+
+        if sub == "agent":
+            result = self.studio.cmd_build(rest, session=self.session)
+            if result:
+                self._refresh_completer()
+        else:
+            error_line("Usage: /build agent <agentname>")
+
+    def _cmd_studio_delete(self, args: str):
+        """Handle /delete agent <name> and /delete loop <name> with refresh."""
+        self.studio.cmd_delete(args, session=self.session)
+        self._refresh_completer()
+
+    def _cmd_run_custom_agent(self, agent_name: str, topic: str):
+        """Run a custom agent with the currently loaded context."""
+        if not topic:
+            error_line(f"Usage: /{agent_name} \"your topic\"")
+            return
+
+        # Gather context from loaded documents
+        paper_text = ""
+        atoms = []
+        web_results = []
+
+        if self._vault_session:
+            for rag_inst in self._vault_session.papers.values():
+                atoms.extend(getattr(rag_inst, "atoms", []))
+        elif self.rag:
+            atoms = getattr(self.rag, "atoms", [])
+
+        result = self.studio.cmd_run_agent(
+            command     = agent_name,
+            topic       = topic,
+            paper_text  = paper_text,
+            atoms       = atoms,
+            web_results = web_results,
+        )
+
+        if result.get("output_text"):
+            nl()
+            console.print(Panel(
+                Markdown(result["output_text"]),
+                title=f"[bold {T.SECONDARY}]/{agent_name}  ·  {result.get('elapsed_s', 0):.1f}s[/]",
+                border_style=T.DIM,
+                padding=(1, 2),
+            ))
+            nl()
+
+    def _cmd_run_custom_loop(self, loop_name: str, topic: str):
+        """Run a custom agent loop with the currently loaded context."""
+        if not topic:
+            error_line(f"Usage: /loop {loop_name} \"your topic\"")
+            return
+
+        atoms = []
+        web_results = []
+        paper_text = ""
+
+        if self._vault_session:
+            for rag_inst in self._vault_session.papers.values():
+                atoms.extend(getattr(rag_inst, "atoms", []))
+        elif self.rag:
+            atoms = getattr(self.rag, "atoms", [])
+
+        result = self.studio.cmd_run_loop(
+            loop_id     = loop_name,
+            topic       = topic,
+            paper_text  = paper_text,
+            atoms       = atoms,
+            web_results = web_results,
+        )
+
+        if result.get("output_text"):
+            nl()
+            console.print(Panel(
+                Markdown(result["output_text"]),
+                title=f"[bold {T.SECONDARY}]loop: {loop_name}  ·  {result.get('elapsed_s', 0):.1f}s[/]",
+                border_style=T.DIM,
+                padding=(1, 2),
+            ))
+            nl()
 
     def _cmd_exit(self):
         nl()
