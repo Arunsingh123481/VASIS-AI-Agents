@@ -1914,6 +1914,9 @@ class VasisCLI:
             error_line(f"Usage: /{agent_name} \"your topic\"")
             return
 
+        # Strip quotes the user may have typed (e.g. /references "all")
+        topic = topic.strip('"').strip("'").strip()
+
         # Look up the agent to get its input_type
         from agent_builder import _slugify
         agent_obj = self.studio.store.get_agent(_slugify(agent_name))
@@ -1929,7 +1932,7 @@ class VasisCLI:
         # the LLM (which truncates/hallucinates), concatenate the raw
         # bibliography atoms and display them directly — matching what the
         # built-in Agent 4 does.
-        if agent_name == "references" and topic.strip().lower() == "all" and atoms:
+        if agent_name == "references" and topic.lower() == "all" and atoms:
             import time as _t
             t0 = _t.time()
             # Clean and concatenate all bibliography atoms in document order
