@@ -1989,6 +1989,8 @@ class AgentStudio:
             f"Your task: {agent.description}\n"
             f"Output: {agent.output_desc}"
         )
+        if agent_id == "references":
+            user_prompt += "\nNote: Be exhaustive. Extract and list all unique references from the context. Do not truncate, summarize, or omit items."
 
         output_text = ""
         if self.llm_fn:
