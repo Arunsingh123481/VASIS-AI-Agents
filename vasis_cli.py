@@ -469,12 +469,13 @@ class VasisCLI:
             from llm.ollama_client import ask_llm
             # Use slightly higher temperature (e.g. 0.2) for open-ended formatting/synthesis 
             # tasks like references/abstract to prevent repetition loops.
-            def ask_llm_with_temp(prompt: str) -> str:
+            def ask_llm_with_temp(prompt: str, model: str = None) -> str:
                 temp = 0.0
                 prompt_lower = prompt.lower()
                 if "references" in prompt_lower or "bibliography" in prompt_lower or "abstract" in prompt_lower:
                     temp = 0.2
-                return ask_llm(prompt, model=REASONING_MODEL, temperature=temp)
+                model_to_use = model if model else REASONING_MODEL
+                return ask_llm(prompt, model=model_to_use, temperature=temp)
             llm_fn = ask_llm_with_temp
         except Exception:
             llm_fn = None   # works without LLM (template fallback)
@@ -2408,7 +2409,7 @@ class VasisCLI:
             nl()
             console.print(Panel(
                 Markdown(result["output_text"]),
-                title=f"[bold {T.SECONDARY}]/{agent_name}  ·  {result.get('elapsed_s', 0):.1f}s[/]",
+                title=f"[bold {T.SECONDARY}]/{agent_name} ({result.get('model')})  ·  {result.get('elapsed_s', 0):.1f}s[/]",
                 border_style=T.DIM,
                 padding=(1, 2),
             ))

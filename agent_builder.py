@@ -1367,6 +1367,14 @@ class AgentStudio:
             llm_fn          = self.llm_fn,
         )
 
+        # Determine model to use based on blueprint category or fallback
+        from config import AGENT_MODEL, REASONING_MODEL
+        category = blueprint.get("category", "paper_section") if blueprint else "paper_section"
+        if category == "extraction" or agent_id in ("keywords", "factcheck"):
+            model_to_use = AGENT_MODEL
+        else:
+            model_to_use = REASONING_MODEL
+
         # ── save ──────────────────────────────────────────────────────────────
         agent = CustomAgent(
             agent_id        = agent_id,
@@ -1380,6 +1388,7 @@ class AgentStudio:
             quality_bar     = answers.get("quality_bar", ""),
             extra           = answers.get("extra", ""),
             system_prompt   = system_prompt,
+            model           = model_to_use,
         )
         self.store.save_agent(agent)
 
@@ -1971,7 +1980,19 @@ class AgentStudio:
             self._p(f"  ✗ Agent /{agent_id} not found.", "error")
             return {}
 
-        self._p(f"  ◆ Running /{agent_id}…", "running")
+        # Determine model to use (loaded from DB or dynamically routed)
+        model_name = getattr(agent, "model", None)
+        if not model_name:
+            from config import AGENT_MODEL, REASONING_MODEL
+            from agent_builder import AGENT_BLUEPRINTS
+            bp = AGENT_BLUEPRINTS.get(agent_id, {})
+            category = bp.get("category", "paper_section")
+            if category == "extraction" or agent_id in ("keywords", "factcheck"):
+                model_name = AGENT_MODEL
+            else:
+                model_name = REASONING_MODEL
+
+        self._p(f"  ◆ Running /{agent_id} ({model_name})…", "running")
         t0 = time.time()
 
         # assemble context based on input_type
@@ -1995,9 +2016,17 @@ class AgentStudio:
         output_text = ""
         if self.llm_fn:
             try:
-                output_text = self.llm_fn(
-                    agent.system_prompt + "\n\n" + user_prompt
-                )
+                import inspect
+                sig = inspect.signature(self.llm_fn)
+                if "model" in sig.parameters:
+                    output_text = self.llm_fn(
+                        agent.system_prompt + "\n\n" + user_prompt,
+                        model=model_name
+                    )
+                else:
+                    output_text = self.llm_fn(
+                        agent.system_prompt + "\n\n" + user_prompt
+                    )
             except Exception as e:
                 self._p(f"  ✗ LLM error: {e}", "error")
                 return {}
@@ -2013,13 +2042,14 @@ class AgentStudio:
 
         self._p(
             f"  ✓ /{agent_id}  {elapsed:.1f}s  "
-            f"{len(output_text.split())} words",
+            f"{len(output_text.split())} words  ({model_name})",
             "success",
         )
         return {
             "output_text": output_text,
             "agent_id":    agent_id,
             "elapsed_s":   elapsed,
+            "model":       model_name,
         }
 
     # =========================================================================
