@@ -2174,9 +2174,9 @@ def _build_context(
 
     # Vault atoms — up to 60, ranked by BM25 relevance if caller sorted them
     if atoms:
-        atom_text = "\n".join(
-            f"[{i+1}] {a.get('text', '')[:300]}"
-            for i, a in enumerate(atoms[:60])
+        atom_text = "\n\n".join(
+            a.get('text', '').strip()
+            for a in atoms[:60]
         )
         parts.append(f"VAULT ATOMS:\n{atom_text}")
 
