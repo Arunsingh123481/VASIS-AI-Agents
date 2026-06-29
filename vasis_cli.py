@@ -1855,7 +1855,7 @@ class VasisCLI:
                 if bib_node:
                     bib_atoms = [
                         a for a in raw_atoms
-                        if bib_node["start_page"] <= a.get("page", -1) <= bib_node["end_page"]
+                        if bib_node["start_page"] <= (a.get("page_num") or a.get("page", -1)) <= bib_node["end_page"]
                     ]
 
                 # Tier 1.5: Header scan (last 35% of document)
@@ -1871,10 +1871,10 @@ class VasisCLI:
 
                 # Tier 2: Last-pages fallback (last 3 pages of document)
                 if not bib_atoms:
-                    sorted_atoms = sorted(raw_atoms, key=lambda x: int(x.get("page", 0)))
-                    max_page = sorted_atoms[-1].get("page", 0) if sorted_atoms else 0
+                    sorted_atoms = sorted(raw_atoms, key=lambda x: int(x.get("page_num") or x.get("page", 0)))
+                    max_page = sorted_atoms[-1].get("page_num") or sorted_atoms[-1].get("page", 0) if sorted_atoms else 0
                     if max_page > 0:
-                        bib_atoms = [a for a in sorted_atoms if a.get("page", 0) >= max_page - 2]
+                        bib_atoms = [a for a in sorted_atoms if (a.get("page_num") or a.get("page", 0)) >= max_page - 2]
 
                 if bib_atoms:
                     # Sort bibliography atoms in document order (chronological) so they flow naturally
