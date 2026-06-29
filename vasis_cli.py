@@ -1864,17 +1864,17 @@ class VasisCLI:
                     search_start = int(len(sorted_atoms) * 0.65)
                     tail = sorted_atoms[search_start:]
                     for idx, atom in enumerate(tail):
-                        text = atom.get("text", "").strip().lower()
-                        if text in ("references", "bibliography", "works cited", "citations"):
-                            bib_atoms = tail[idx+1:]
+                        lines = [l.strip().lower() for l in atom.get("text", "").split("\n")]
+                        if any(l in ("references", "bibliography", "works cited", "citations") for l in lines):
+                            bib_atoms = tail[idx:]
                             break
 
-                # Tier 2: Last-pages fallback (last 3 pages of document)
+                # Tier 2: Last-pages fallback (last 5 pages of document)
                 if not bib_atoms:
                     sorted_atoms = sorted(raw_atoms, key=lambda x: int(x.get("page_num") or x.get("page", 0)))
                     max_page = sorted_atoms[-1].get("page_num") or sorted_atoms[-1].get("page", 0) if sorted_atoms else 0
                     if max_page > 0:
-                        bib_atoms = [a for a in sorted_atoms if (a.get("page_num") or a.get("page", 0)) >= max_page - 2]
+                        bib_atoms = [a for a in sorted_atoms if (a.get("page_num") or a.get("page", 0)) >= max_page - 4]
 
                 if bib_atoms:
                     # Sort bibliography atoms in document order (chronological) so they flow naturally
