@@ -1923,6 +1923,38 @@ class VasisCLI:
             agent_name, topic, input_type,
         )
 
+        # ── Direct-output fast path for /references "all" ─────────────
+        # The full bibliography (100+ entries, ~20k chars) cannot fit in a
+        # local 7B model's context window.  Instead of sending it through
+        # the LLM (which truncates/hallucinates), concatenate the raw
+        # bibliography atoms and display them directly — matching what the
+        # built-in Agent 4 does.
+        if agent_name == "references" and topic.strip().lower() == "all" and atoms:
+            import time as _t
+            t0 = _t.time()
+            # Clean and concatenate all bibliography atoms in document order
+            lines = []
+            for atom in atoms:
+                text = atom.get("text", "").strip()
+                if text:
+                    # Remove unicode replacement chars and normalise spaces
+                    text = text.replace("\uFFFD", "")
+                    lines.append(text)
+            elapsed = _t.time() - t0
+            if lines:
+                body = "REFERENCES\n\n" + "\n\n".join(lines) + f"\n\n— {len(lines)} reference entries extracted from document"
+                nl()
+                console.print(Panel(
+                    Markdown(body),
+                    title=f"[bold {T.SECONDARY}]/references  ·  {elapsed:.1f}s[/]",
+                    border_style=T.DIM,
+                    padding=(1, 2),
+                ))
+                nl()
+            else:
+                error_line("No bibliography entries found in the indexed document.")
+            return
+
         result = self.studio.cmd_run_agent(
             command     = agent_name,
             topic       = topic,
