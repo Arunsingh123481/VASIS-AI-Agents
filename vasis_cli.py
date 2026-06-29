@@ -1776,22 +1776,100 @@ class VasisCLI:
         self.studio.cmd_delete(args, session=self.session)
         self._refresh_completer()
 
-    def _cmd_run_custom_agent(self, agent_name: str, topic: str):
-        """Run a custom agent with the currently loaded context."""
-        if not topic:
-            error_line(f"Usage: /{agent_name} \"your topic\"")
-            return
+    # ── Section-synonym table for BM25 search boost ───────────────────────
+    _AGENT_SYNONYMS = {
+        "references":      "references bibliography citations sources works cited",
+        "abstract":         "abstract summary executive summary outline",
+        "introduction":     "introduction background overview setup",
+        "literaturereview": "literature review related work survey state of the art",
+        "methodology":      "methodology materials methods experiment setup design",
+        "results":          "results findings experimental results evaluation data",
+        "discussion":       "discussion interpretation implications limitations",
+        "conclusion":       "conclusion future work concluding remarks summary",
+        "gapanalysis":      "gap analysis research gap missing unexplored",
+        "keywords":         "keywords index terms key phrases",
+        "factcheck":        "fact check verification claims evidence",
+        "criticalreview":   "critical review critique strengths weaknesses",
+        "comparison":       "comparison compare contrast versus differences",
+    }
 
-        # Gather context from loaded documents
+    def _gather_smart_context(
+        self,
+        agent_name: str,
+        topic: str,
+        agent_input_type: str = "all",
+    ) -> tuple:
+        """
+        Build (paper_text, atoms, web_results) with smart retrieval:
+          1. Load last generated paper draft as paper_text.
+          2. BM25-rank vault atoms by relevance to topic + agent synonyms.
+          3. Call Agent12 web search when input_type needs it.
+        """
         paper_text = ""
         atoms = []
         web_results = []
 
+        # ── 1. Load last generated paper text ─────────────────────────────
+        if self.outputs_dir.exists():
+            md_files = sorted(
+                self.outputs_dir.glob("paper_*.md"),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
+            if md_files:
+                try:
+                    paper_text = md_files[0].read_text(encoding="utf-8")
+                except Exception:
+                    pass
+
+        # ── 2. Gather and BM25-rank vault atoms ──────────────────────────
+        raw_atoms = []
         if self._vault_session:
             for rag_inst in self._vault_session.papers.values():
-                atoms.extend(getattr(rag_inst, "atoms", []))
+                raw_atoms.extend(getattr(rag_inst, "atoms", []))
         elif self.rag:
-            atoms = getattr(self.rag, "atoms", [])
+            raw_atoms = list(getattr(self.rag, "atoms", []))
+
+        if raw_atoms:
+            search_query = topic
+            synonyms = self._AGENT_SYNONYMS.get(agent_name, "")
+            if synonyms:
+                search_query += " " + synonyms
+
+            try:
+                from db.bm25_index import BM25Index
+                ranked = BM25Index(raw_atoms).search(
+                    search_query, top_k=len(raw_atoms),
+                )
+                atoms = ranked if ranked else raw_atoms
+            except Exception:
+                atoms = raw_atoms
+        else:
+            atoms = raw_atoms
+
+        # ── 3. Web search via Agent 12 ────────────────────────────────────
+        if agent_input_type in ("web_search", "all"):
+            try:
+                web_results = self._dispatch_learn_crawl(topic)
+            except Exception:
+                pass
+
+        return paper_text, atoms, web_results
+
+    def _cmd_run_custom_agent(self, agent_name: str, topic: str):
+        """Run a custom agent with smart context retrieval."""
+        if not topic:
+            error_line(f"Usage: /{agent_name} \"your topic\"")
+            return
+
+        # Look up the agent to get its input_type
+        from agent_builder import _slugify
+        agent_obj = self.studio.store.get_agent(_slugify(agent_name))
+        input_type = getattr(agent_obj, "input_type", "all") if agent_obj else "all"
+
+        paper_text, atoms, web_results = self._gather_smart_context(
+            agent_name, topic, input_type,
+        )
 
         result = self.studio.cmd_run_agent(
             command     = agent_name,
@@ -1812,20 +1890,15 @@ class VasisCLI:
             nl()
 
     def _cmd_run_custom_loop(self, loop_name: str, topic: str):
-        """Run a custom agent loop with the currently loaded context."""
+        """Run a custom agent loop with smart context retrieval."""
         if not topic:
             error_line(f"Usage: /loop {loop_name} \"your topic\"")
             return
 
-        atoms = []
-        web_results = []
-        paper_text = ""
-
-        if self._vault_session:
-            for rag_inst in self._vault_session.papers.values():
-                atoms.extend(getattr(rag_inst, "atoms", []))
-        elif self.rag:
-            atoms = getattr(self.rag, "atoms", [])
+        # Use "all" input type for loops — they benefit from maximum context
+        paper_text, atoms, web_results = self._gather_smart_context(
+            loop_name, topic, "all",
+        )
 
         result = self.studio.cmd_run_loop(
             loop_id     = loop_name,

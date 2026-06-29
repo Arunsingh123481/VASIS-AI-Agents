@@ -2157,22 +2157,35 @@ def _build_context(
     atoms:       list,
     web_results: list,
 ) -> str:
-    """Assemble context string based on what the agent needs."""
+    """
+    Assemble context string from all available sources.
+
+    The input_type hint is used for ordering priority, but any context
+    that is actually populated is always included so standalone custom
+    agents receive maximum grounding.
+    """
     parts = []
-    if input_type in ("paper_text", "all") and paper_text:
+
+    # Paper text (first 4000 chars)
+    if paper_text:
         parts.append(f"PAPER TEXT:\n{paper_text[:4000]}")
-    if input_type in ("vault_atoms", "all") and atoms:
+
+    # Vault atoms — up to 20, ranked by BM25 relevance if caller sorted them
+    if atoms:
         atom_text = "\n".join(
             f"[{i+1}] {a.get('text', '')[:300]}"
-            for i, a in enumerate(atoms[:10])
+            for i, a in enumerate(atoms[:20])
         )
         parts.append(f"VAULT ATOMS:\n{atom_text}")
-    if input_type in ("web_search", "all") and web_results:
+
+    # Web search results — up to 8
+    if web_results:
         web_text = "\n".join(
             f"[W{i+1}] {r.get('title','')} — {r.get('snippet','')[:200]}"
             for i, r in enumerate(web_results[:8])
         )
         parts.append(f"WEB SOURCES:\n{web_text}")
+
     return "\n\n".join(parts) if parts else f"Topic: {topic}"
 
 
