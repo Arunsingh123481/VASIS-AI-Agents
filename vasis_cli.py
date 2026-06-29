@@ -1933,19 +1933,36 @@ class VasisCLI:
         # bibliography atoms and display them directly — matching what the
         # built-in Agent 4 does.
         if agent_name == "references" and topic.lower() == "all" and atoms:
-            import time as _t
+            import time as _t, re as _re
             t0 = _t.time()
-            # Clean and concatenate all bibliography atoms in document order
-            lines = []
-            for atom in atoms:
-                text = atom.get("text", "").strip()
-                if text:
-                    # Remove unicode replacement chars and normalise spaces
-                    text = text.replace("\uFFFD", "")
-                    lines.append(text)
+
+            # 1. Join all atom texts into one continuous string
+            raw_text = " ".join(
+                atom.get("text", "").replace("\uFFFD", "").strip()
+                for atom in atoms
+                if atom.get("text", "").strip()
+            )
+            # Normalise whitespace (collapse line breaks, double spaces)
+            raw_text = _re.sub(r"\s+", " ", raw_text).strip()
+
+            # 2. Split by [N] citation markers → one entry per reference
+            #    Pattern: "[1] Author..." "[2] Author..." etc.
+            parts = _re.split(r"\s*(?=\[\d+\]\s)", raw_text)
+
+            refs = []
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+                # Only keep parts that start with [N] (skip preamble/conclusion text)
+                if _re.match(r"^\[\d+\]", part):
+                    # Clean up hyphenation artefacts from PDF column breaks
+                    part = part.replace("- ", "")
+                    refs.append(part)
+
             elapsed = _t.time() - t0
-            if lines:
-                body = "REFERENCES\n\n" + "\n\n".join(lines) + f"\n\n— {len(lines)} reference entries extracted from document"
+            if refs:
+                body = "REFERENCES\n\n" + "\n\n".join(refs) + f"\n\n— {len(refs)} references extracted from document"
                 nl()
                 console.print(Panel(
                     Markdown(body),
