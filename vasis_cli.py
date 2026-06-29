@@ -467,7 +467,15 @@ class VasisCLI:
         """Initialise the Custom Agent Studio with LLM and Rich print adapter."""
         try:
             from llm.ollama_client import ask_llm
-            llm_fn = lambda prompt: ask_llm(prompt, model=REASONING_MODEL)
+            # Use slightly higher temperature (e.g. 0.2) for open-ended formatting/synthesis 
+            # tasks like references/abstract to prevent repetition loops.
+            def ask_llm_with_temp(prompt: str) -> str:
+                temp = 0.0
+                prompt_lower = prompt.lower()
+                if "references" in prompt_lower or "bibliography" in prompt_lower or "abstract" in prompt_lower:
+                    temp = 0.2
+                return ask_llm(prompt, model=REASONING_MODEL, temperature=temp)
+            llm_fn = ask_llm_with_temp
         except Exception:
             llm_fn = None   # works without LLM (template fallback)
 
@@ -1802,7 +1810,8 @@ class VasisCLI:
         """
         Build (paper_text, atoms, web_results) with smart retrieval:
           1. Load last generated paper draft as paper_text.
-          2. BM25-rank vault atoms by relevance to topic + agent synonyms.
+          2. Locate and extract sequential bibliography atoms if it is a references agent,
+             or rank general vault atoms by BM25 relevance.
           3. Call Agent12 web search when input_type needs it.
         """
         paper_text = ""
@@ -1831,19 +1840,62 @@ class VasisCLI:
             raw_atoms = list(getattr(self.rag, "atoms", []))
 
         if raw_atoms:
-            search_query = topic
-            synonyms = self._AGENT_SYNONYMS.get(agent_name, "")
-            if synonyms:
-                search_query += " " + synonyms
+            # Check if this is a references query to get the complete bibliography
+            if agent_name == "references":
+                bib_atoms = []
+                BIB_TITLE_KEYWORDS = {"references", "bibliography", "works cited", "reference list", "citations", "cited works"}
 
-            try:
-                from db.bm25_index import BM25Index
-                ranked = BM25Index(raw_atoms).search(
-                    search_query, top_k=len(raw_atoms),
-                )
-                atoms = ranked if ranked else raw_atoms
-            except Exception:
-                atoms = raw_atoms
+                # Tier 1: Tree scan for bibliography section
+                bib_node = None
+                for node in (self.rag.tree_nodes if self.rag else []):
+                    title = node.get("title", "").lower()
+                    if any(k in title for k in BIB_TITLE_KEYWORDS):
+                        bib_node = node  # last match wins
+
+                if bib_node:
+                    bib_atoms = [
+                        a for a in raw_atoms
+                        if bib_node["start_page"] <= a.get("page", -1) <= bib_node["end_page"]
+                    ]
+
+                # Tier 1.5: Header scan (last 35% of document)
+                if not bib_atoms:
+                    sorted_atoms = sorted(raw_atoms, key=lambda x: int(x.get("atom_id", 0)))
+                    search_start = int(len(sorted_atoms) * 0.65)
+                    tail = sorted_atoms[search_start:]
+                    for idx, atom in enumerate(tail):
+                        text = atom.get("text", "").strip().lower()
+                        if text in ("references", "bibliography", "works cited", "citations"):
+                            bib_atoms = tail[idx+1:]
+                            break
+
+                # Tier 2: Last-pages fallback (last 3 pages of document)
+                if not bib_atoms:
+                    sorted_atoms = sorted(raw_atoms, key=lambda x: int(x.get("page", 0)))
+                    max_page = sorted_atoms[-1].get("page", 0) if sorted_atoms else 0
+                    if max_page > 0:
+                        bib_atoms = [a for a in sorted_atoms if a.get("page", 0) >= max_page - 2]
+
+                if bib_atoms:
+                    # Sort bibliography atoms in document order (chronological) so they flow naturally
+                    atoms = sorted(bib_atoms, key=lambda x: int(x.get("atom_id", 0)))
+                else:
+                    atoms = raw_atoms
+            else:
+                # Normal BM25 ranker for general section/topic extraction
+                search_query = topic
+                synonyms = self._AGENT_SYNONYMS.get(agent_name, "")
+                if synonyms:
+                    search_query += " " + synonyms
+
+                try:
+                    from db.bm25_index import BM25Index
+                    ranked = BM25Index(raw_atoms).search(
+                        search_query, top_k=len(raw_atoms),
+                    )
+                    atoms = ranked if ranked else raw_atoms
+                except Exception:
+                    atoms = raw_atoms
         else:
             atoms = raw_atoms
 
