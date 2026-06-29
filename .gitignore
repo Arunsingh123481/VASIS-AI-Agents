@@ -33,3 +33,11 @@ outputs/
 
 # Local documentation guides
 loop.md
+
+# Local runtime database and histories
+.vasis_custom_agents.json
+.vasis_history
+logs/
+*.txt
+!requirements.txt
+pageindex_remse_abstract.md.resolved

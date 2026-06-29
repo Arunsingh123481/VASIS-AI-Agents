@@ -275,6 +275,55 @@ When running a loop inside the full-screen terminal TUI (`vasis_shell.py`), the 
 
 ---
 
+## CUSTOM AGENT STUDIO (Agent & Loop Builder)
+
+The **Custom Agent Studio** (`agent_builder.py`) allows researchers to create, persist, connect, and delete their own custom agents and execution loops dynamically, extending the capabilities of the core 14 fixed agents without touching any source code. 
+
+For a complete usage guide, query formats, and direct extraction examples, refer to [custom_agent.md](file:///e:/Vasis%20AI/custom_agent.md).
+
+### 1. Build a Custom Agent
+Launch the interactive wizard inside `vasis_cli.py` to compile a new agent. The system leverages predefined blueprints (such as `abstract`, `introduction`, `methodology`, `results`, `discussion`, `conclusion`, and `references`) to auto-populate metadata and build robust, localized system prompts.
+
+```bash
+❯ /build agent references        # Activates focused 3-step blueprint wizard
+❯ /build agent                   # Activates full 7-step wizard for custom agents
+```
+
+### 2. Connect Custom Loops
+Wire multiple agents together into custom sequential execution pipelines with optional quality gates.
+
+```bash
+❯ /connect abstract introduction references --name paper-sections --quality
+```
+*   `--name`: Assigns a custom name identifier to the loop.
+*   `--quality`: Adds a self-correcting quality gate (automatically retries agent output if it falls below length thresholds).
+
+### 3. Query Custom Agents
+Run agents individually or execute loops across loaded papers.
+
+```bash
+❯ /[agent_name] "[paper title or topic]"   # Run a custom agent directly
+❯ /loop [loop_name] "[topic]"              # Run a custom connected loop
+```
+
+### 4. Direct Section Extraction (Instant 0.0s Execution)
+For agents categorized as `paper_section` (e.g., `/abstract`, `/introduction`, `/references`), the engine features a **universal section extraction engine**. 
+
+When you query an agent using an indexed paper's title (or `"all"` when exactly one document is loaded), the engine bypasses LLM inference entirely. Instead, it extracts the section text directly from the vault atoms in **0.0 seconds** with zero hallucination. If no title matches, it automatically falls back to academic web searches and local LLM generation.
+
+```bash
+❯ /introduction "Attention Is All You Need"  # Direct high-fidelity extraction
+❯ /introduction "Quantum Computing"           # Fallback: Web search + LLM generation
+```
+
+### 5. Studio Command Directory
+*   `/my-agents` — Lists all registered fixed and custom agents.
+*   `/my-loops` — Lists all custom connected agent loops.
+*   `/delete agent [name]` — Permanently deletes a custom agent.
+*   `/delete loop [name]` — Permanently deletes a custom loop.
+
+---
+
 ## INSTALLATION & QUICK START 
 
 ### Prerequisites

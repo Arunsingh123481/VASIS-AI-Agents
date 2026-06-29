@@ -1801,6 +1801,318 @@ class VasisCLI:
         "comparison":       "comparison compare contrast versus differences",
     }
 
+    # ── Section heading patterns for regex boundary extraction ─────────────
+    # Maps agent_name → (start_keywords, end_keywords) used to find section
+    # boundaries in raw atom text when tree node mapping fails.
+    _SECTION_HEADINGS = {
+        "abstract": {
+            "start": [r"abstract"],
+            "end":   [r"index\s+terms", r"keywords", r"i\.\s+introduction",
+                      r"1\.?\s+introduction", r"introduction"],
+        },
+        "introduction": {
+            "start": [r"i\.\s+introduction", r"1\.?\s+introduction",
+                      r"introduction(?:\s+and\s+\w+)?"],
+            "end":   [r"ii\.\s+", r"2\.?\s+", r"related\s+work",
+                      r"literature\s+review", r"background",
+                      r"preliminaries", r"methodology", r"methods",
+                      r"problem\s+(?:statement|formulation|definition)"],
+        },
+        "literaturereview": {
+            "start": [r"(?:ii|2)\.?\s+(?:related\s+work|literature\s+review)",
+                      r"related\s+work", r"literature\s+review"],
+            "end":   [r"(?:iii|3)\.?\s+", r"methodology", r"methods",
+                      r"approach", r"proposed"],
+        },
+        "methodology": {
+            "start": [r"(?:iii|3)\.?\s+(?:method|approach)",
+                      r"method(?:ology|s)?", r"materials?\s+and\s+methods",
+                      r"approach", r"experimental\s+(?:setup|design)"],
+            "end":   [r"(?:iv|4)\.?\s+", r"results", r"experiments",
+                      r"evaluation", r"findings"],
+        },
+        "results": {
+            "start": [r"(?:iv|4)\.?\s+(?:results|experiments|evaluation)",
+                      r"results", r"experiments", r"evaluation"],
+            "end":   [r"(?:v|5)\.?\s+", r"discussion", r"analysis",
+                      r"conclusion"],
+        },
+        "discussion": {
+            "start": [r"(?:v|5)\.?\s+discussion", r"discussion"],
+            "end":   [r"(?:vi|6)\.?\s+", r"conclusion", r"future\s+work",
+                      r"references", r"bibliography"],
+        },
+        "conclusion": {
+            "start": [r"(?:vi|6)\.?\s+conclusion", r"conclusions?",
+                      r"concluding\s+remarks", r"summary\s+and"],
+            "end":   [r"references", r"bibliography", r"acknowledgment",
+                      r"appendix"],
+        },
+        "references": {
+            "start": [r"references", r"bibliography", r"works?\s+cited"],
+            "end":   [],  # references run to end of document
+        },
+    }
+
+    # =========================================================================
+    # Paper title matcher — resolves user topic to a vault RAG instance
+    # =========================================================================
+
+    def _match_vault_paper(self, topic: str):
+        """
+        Fuzzy-match the user's topic string against loaded vault papers.
+
+        Checks (in order):
+          1. "all" when exactly one paper is loaded → returns that paper
+          2. Exact substring match on vault_docs[].name (file stem)
+          3. Substring match on the paper's first atom text (contains title)
+          4. Substring match on tree_nodes[0].title
+
+        Returns the matched PageIndexREMSE instance, or None.
+        """
+        import re
+
+        topic_lower = topic.lower().strip()
+
+        # Shortcut: "all" / "extract" → match the single loaded paper
+        if topic_lower in ("all", "extract", "extract abstract"):
+            if self.rag:
+                return self.rag
+            if self._vault_session and len(self._vault_session.papers) == 1:
+                return next(iter(self._vault_session.papers.values()))
+            return None
+
+        # Collect all available RAG instances with their metadata
+        candidates = []
+        if self.rag:
+            candidates.append(self.rag)
+        if self._vault_session:
+            for rag_inst in self._vault_session.papers.values():
+                if rag_inst not in candidates:
+                    candidates.append(rag_inst)
+
+        if not candidates:
+            return None
+
+        # Normalise topic for matching
+        topic_norm = re.sub(r"[^a-z0-9\s]", "", topic_lower).strip()
+
+        for rag_inst in candidates:
+            # Check 1: file stem from vault_docs
+            for vd in self.vault_docs:
+                if vd.get("doc_id") == getattr(rag_inst, "doc_id", None):
+                    name_norm = re.sub(r"[^a-z0-9\s]", "", vd["name"].lower())
+                    if topic_norm in name_norm or name_norm in topic_norm:
+                        return rag_inst
+
+            # Check 2: first atom text (contains paper title on page 1)
+            atoms = getattr(rag_inst, "atoms", [])
+            if atoms:
+                first_text = atoms[0].get("text", "").lower()
+                first_line = first_text.split("\n")[0].strip()
+                first_norm = re.sub(r"[^a-z0-9\s]", "", first_line)
+                if topic_norm in first_norm or first_norm in topic_norm:
+                    return rag_inst
+
+            # Check 3: first tree node title
+            tree_nodes = getattr(rag_inst, "tree_nodes", [])
+            if tree_nodes:
+                node_title = tree_nodes[0].get("title", "").lower()
+                node_norm = re.sub(r"[^a-z0-9\s]", "", node_title)
+                if topic_norm in node_norm or node_norm in topic_norm:
+                    return rag_inst
+
+        return None
+
+    # =========================================================================
+    # Universal section extractor — extract any section from indexed atoms
+    # =========================================================================
+
+    def _extract_section_from_paper(self, agent_name: str, rag) -> str:
+        """
+        Extract a paper section's text directly from indexed atoms.
+
+        Strategy (tried in order):
+          1. Tree node match — find a node whose title matches the section name
+             → extract all atoms within that node's page range
+          2. Regex boundary detection — scan raw atom text for section headings
+             → extract text between the start heading and the next heading
+
+        Returns the cleaned section text, or empty string if not found.
+        """
+        import re
+        import textwrap
+
+        atoms = getattr(rag, "atoms", [])
+        tree_nodes = getattr(rag, "tree_nodes", [])
+        if not atoms:
+            return ""
+
+        sorted_atoms = sorted(atoms, key=lambda x: int(x.get("atom_id", 0)))
+
+        # ── Determine search keywords for this agent ──────────────────────
+        synonyms = self._AGENT_SYNONYMS.get(agent_name, agent_name)
+        search_words = set(synonyms.lower().split())
+        # Also add the agent_name itself
+        search_words.add(agent_name.lower())
+
+        # ── Strategy 1: Tree node title match ─────────────────────────────
+        matched_node = None
+        best_overlap = 0
+        for node in tree_nodes:
+            node_title = node.get("title", "").lower()
+            node_words = set(re.sub(r"[^a-z\s]", "", node_title).split())
+            overlap = len(search_words & node_words)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                matched_node = node
+
+        if matched_node and best_overlap > 0:
+            start_page = matched_node.get("start_page", 1)
+            end_page = matched_node.get("end_page", 9999)
+            section_atoms = [
+                a for a in sorted_atoms
+                if start_page <= (a.get("page_num") or a.get("page", 0)) <= end_page
+            ]
+
+            if section_atoms:
+                raw_text = " ".join(
+                    a.get("text", "").replace("\uFFFD", "").strip()
+                    for a in section_atoms
+                    if a.get("text", "").strip()
+                )
+
+                # For references, use the specialised [N] splitter
+                if agent_name == "references":
+                    return self._format_references_from_text(raw_text)
+
+                # For abstract, use the specialised regex extractor
+                if agent_name == "abstract":
+                    return self._extract_abstract_from_text(raw_text)
+
+                # For other sections, try regex boundary refinement within
+                # the matched node's text to remove preamble/postamble
+                refined = self._refine_section_by_heading(
+                    agent_name, raw_text, section_atoms
+                )
+                if refined:
+                    return refined
+
+                # Fallback: return the full node text cleaned up
+                clean = re.sub(r"\s+", " ", raw_text).strip()
+                clean = re.sub(r"(\w+)-\s+(\w+)", r"\1\2", clean)
+                return textwrap.fill(clean, width=78)
+
+        # ── Strategy 2: Regex boundary detection in full document ─────────
+        headings = self._SECTION_HEADINGS.get(agent_name)
+        if headings:
+            full_text = " ".join(
+                a.get("text", "").replace("\uFFFD", "").strip()
+                for a in sorted_atoms
+                if a.get("text", "").strip()
+            )
+
+            # Find section start
+            for start_pattern in headings["start"]:
+                start_re = re.compile(
+                    r"(?i)\b" + start_pattern + r"\b[^a-zA-Z0-9]*"
+                )
+                m = start_re.search(full_text)
+                if m:
+                    remaining = full_text[m.end():]
+
+                    # Find section end
+                    end_pos = len(remaining)
+                    for end_pattern in headings["end"]:
+                        end_re = re.compile(r"(?i)\b" + end_pattern + r"\b")
+                        em = end_re.search(remaining)
+                        if em and em.start() < end_pos:
+                            end_pos = em.start()
+
+                    section_raw = remaining[:end_pos]
+                    clean = re.sub(r"\s+", " ", section_raw).strip()
+                    clean = re.sub(r"(\w+)-\s+(\w+)", r"\1\2", clean)
+                    if len(clean) > 50:  # sanity check
+                        return textwrap.fill(clean, width=78)
+
+        return ""
+
+    def _extract_abstract_from_text(self, raw_text: str) -> str:
+        """Extract abstract section from raw text using regex boundaries."""
+        import re, textwrap
+        start_match = re.search(r"(?i)\babstract\b[^a-zA-Z0-9]*", raw_text)
+        if not start_match:
+            return ""
+        remaining = raw_text[start_match.end():]
+        end_match = re.search(
+            r"(?i)\b(?:index\s+terms|keywords|i\.\s+introduction|"
+            r"1\.?\s+introduction|introduction)\b",
+            remaining,
+        )
+        if end_match:
+            abstract_raw = remaining[: end_match.start()]
+        else:
+            abstract_raw = remaining[:2000]
+        clean = re.sub(r"\s+", " ", abstract_raw).strip()
+        clean = re.sub(r"(\w+)-\s+(\w+)", r"\1\2", clean)
+        return textwrap.fill(clean, width=78)
+
+    def _format_references_from_text(self, raw_text: str) -> str:
+        """Extract and format [N] bibliography entries from raw text."""
+        import re
+        normalised = re.sub(r"\s+", " ", raw_text).strip()
+        parts = re.split(r"\s*(?=\[\d+\]\s)", normalised)
+        refs = []
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            if re.match(r"^\[\d+\]", part):
+                part = part.replace("- ", "")
+                refs.append(part)
+        if refs:
+            return (
+                "REFERENCES\n\n"
+                + "\n\n".join(refs)
+                + f"\n\n— {len(refs)} references extracted from document"
+            )
+        return ""
+
+    def _refine_section_by_heading(
+        self, agent_name: str, raw_text: str, section_atoms: list
+    ) -> str:
+        """
+        Within an already-matched tree node's text, refine extraction to just
+        the target section by searching for heading boundaries.
+        """
+        import re, textwrap
+
+        headings = self._SECTION_HEADINGS.get(agent_name)
+        if not headings:
+            return ""
+
+        for start_pattern in headings["start"]:
+            start_re = re.compile(
+                r"(?i)\b" + start_pattern + r"\b[^a-zA-Z0-9]*"
+            )
+            m = start_re.search(raw_text)
+            if m:
+                remaining = raw_text[m.end():]
+                end_pos = len(remaining)
+                for end_pattern in headings["end"]:
+                    end_re = re.compile(r"(?i)\b" + end_pattern + r"\b")
+                    em = end_re.search(remaining)
+                    if em and em.start() < end_pos:
+                        end_pos = em.start()
+
+                section_raw = remaining[:end_pos]
+                clean = re.sub(r"\s+", " ", section_raw).strip()
+                clean = re.sub(r"(\w+)-\s+(\w+)", r"\1\2", clean)
+                if len(clean) > 50:
+                    return textwrap.fill(clean, width=78)
+
+        return ""
+
     def _gather_smart_context(
         self,
         agent_name: str,
@@ -1841,7 +2153,7 @@ class VasisCLI:
 
         if raw_atoms:
             # Check if this is a references query to get the complete bibliography
-            if agent_name == "references":
+            if agent_name == "references" and topic.lower() == "all":
                 bib_atoms = []
                 BIB_TITLE_KEYWORDS = {"references", "bibliography", "works cited", "reference list", "citations", "cited works"}
 
@@ -1881,6 +2193,9 @@ class VasisCLI:
                     atoms = sorted(bib_atoms, key=lambda x: int(x.get("atom_id", 0)))
                 else:
                     atoms = raw_atoms
+            elif agent_name == "abstract" and topic.lower() in ("all", "extract", "extract abstract"):
+                # For direct abstract extraction, return raw atoms sorted in natural order
+                atoms = sorted(raw_atoms, key=lambda x: int(x.get("atom_id", 0)))
             else:
                 # Normal BM25 ranker for general section/topic extraction
                 search_query = topic
@@ -1909,171 +2224,177 @@ class VasisCLI:
         return paper_text, atoms, web_results
 
     def _cmd_run_custom_agent(self, agent_name: str, topic: str):
-        """Run a custom agent with smart context retrieval."""
+        """Run a custom agent with smart context retrieval.
+
+        Flow:
+          1. Try to match topic to a vault paper by title
+          2. If matched AND agent is a paper_section type → direct extract (0.0s)
+          3. Special modes: /references "suggest" → ArXiv/SS search
+          4. Fallback: web search + LLM generation
+        """
         if not topic:
-            error_line(f"Usage: /{agent_name} \"your topic\"")
+            error_line(f"Usage: /{agent_name} \"paper title or topic\"")
             return
 
-        # Strip quotes the user may have typed (e.g. /references "all")
+        # Strip quotes the user may have typed
         topic = topic.strip('"').strip("'").strip()
 
-        # Look up the agent to get its input_type
-        from agent_builder import _slugify
+        # Look up the agent to get its input_type and blueprint category
+        from agent_builder import _slugify, AGENT_BLUEPRINTS
         agent_obj = self.studio.store.get_agent(_slugify(agent_name))
         input_type = getattr(agent_obj, "input_type", "all") if agent_obj else "all"
 
-        paper_text, atoms, web_results = self._gather_smart_context(
-            agent_name, topic, input_type,
-        )
+        bp = AGENT_BLUEPRINTS.get(agent_name, {})
+        is_paper_section = bp.get("category") == "paper_section"
 
-        # ── Direct-output fast path for /references "all" ─────────────
-        # The full bibliography (100+ entries, ~20k chars) cannot fit in a
-        # local 7B model's context window.  Instead of sending it through
-        # the LLM (which truncates/hallucinates), concatenate the raw
-        # bibliography atoms and display them directly — matching what the
-        # built-in Agent 4 does.
-        if agent_name == "references" and topic.lower() == "all" and atoms:
-            import time as _t, re as _re
-            t0 = _t.time()
+        # ── 1. Try to match topic to a vault paper ─────────────────────────
+        matched_rag = self._match_vault_paper(topic)
 
-            # 1. Join all atom texts into one continuous string
-            raw_text = " ".join(
-                atom.get("text", "").replace("\uFFFD", "").strip()
-                for atom in atoms
-                if atom.get("text", "").strip()
-            )
-            # Normalise whitespace (collapse line breaks, double spaces)
-            raw_text = _re.sub(r"\s+", " ", raw_text).strip()
-
-            # 2. Split by [N] citation markers → one entry per reference
-            #    Pattern: "[1] Author..." "[2] Author..." etc.
-            parts = _re.split(r"\s*(?=\[\d+\]\s)", raw_text)
-
-            refs = []
-            for part in parts:
-                part = part.strip()
-                if not part:
-                    continue
-                # Only keep parts that start with [N] (skip preamble/conclusion text)
-                if _re.match(r"^\[\d+\]", part):
-                    # Clean up hyphenation artefacts from PDF column breaks
-                    part = part.replace("- ", "")
-                    refs.append(part)
-
-            elapsed = _t.time() - t0
-            if refs:
-                body = "REFERENCES\n\n" + "\n\n".join(refs) + f"\n\n— {len(refs)} references extracted from document"
-                nl()
-                console.print(Panel(
-                    Markdown(body),
-                    title=f"[bold {T.SECONDARY}]/references  ·  {elapsed:.1f}s[/]",
-                    border_style=T.DIM,
-                    padding=(1, 2),
-                ))
-                nl()
-            else:
-                error_line("No bibliography entries found in the indexed document.")
-            return
-
-        # ── Suggest mode: find references FOR an unpublished paper ────
-        # When the user has a draft without a bibliography, search ArXiv
-        # and Semantic Scholar for papers they should cite.
-        if agent_name == "references" and topic.lower() == "suggest" and atoms:
+        # ── 2. If paper matched AND paper_section agent → direct extract ───
+        if matched_rag and is_paper_section:
             import time as _t
             t0 = _t.time()
 
-            # 1. Extract the paper's title and key topics from first atoms
-            first_atoms_text = " ".join(
-                a.get("text", "")[:200] for a in atoms[:5]
-            ).strip()
-            # Use the paper title if available, otherwise first 200 chars
-            paper_title = ""
-            if self.rag and hasattr(self.rag, "meta"):
-                paper_title = self.rag.meta.get("title", "")
-            if not paper_title and first_atoms_text:
-                paper_title = first_atoms_text[:200]
+            section_text = self._extract_section_from_paper(
+                agent_name, matched_rag
+            )
 
-            console.print(Text(
-                f"  Searching for references relevant to: {paper_title[:80]}…",
-                style=T.MUTED,
-            ))
+            if section_text:
+                elapsed = _t.time() - t0
 
-            # 2. Search academic sources via Agent 12
-            all_results = []
-            try:
-                from agents.agent12_websearch import (
-                    _search_arxiv, _search_semantic_scholar
-                )
+                # For references, render with Markdown (numbered list)
+                if agent_name == "references":
+                    nl()
+                    console.print(Panel(
+                        Markdown(section_text),
+                        title=f"[bold {T.SECONDARY}]/{agent_name}  ·  {elapsed:.1f}s[/]",
+                        border_style=T.DIM,
+                        padding=(1, 2),
+                    ))
+                    nl()
+                else:
+                    # For other sections, render as wrapped plain text
+                    nl()
+                    console.print(Panel(
+                        section_text,
+                        title=f"[bold {T.SECONDARY}]/{agent_name} extract  ·  {elapsed:.1f}s[/]",
+                        border_style=T.DIM,
+                        padding=(1, 2),
+                    ))
+                    nl()
 
-                # Search with paper title / key topic
-                search_query = paper_title[:100] if paper_title else "research paper"
-
-                with console.status(
-                    f"  [{T.MUTED}]Searching ArXiv…[/]",
-                    spinner="dots", spinner_style=T.PRIMARY,
-                ):
-                    arxiv_results = _search_arxiv(search_query, max_results=15)
-                    all_results.extend(arxiv_results)
-
-                with console.status(
-                    f"  [{T.MUTED}]Searching Semantic Scholar…[/]",
-                    spinner="dots", spinner_style=T.PRIMARY,
-                ):
-                    ss_results = _search_semantic_scholar(search_query, max_results=15)
-                    all_results.extend(ss_results)
-
-            except Exception as e:
-                error_line(f"Web search unavailable: {e}")
-
-            # 3. Deduplicate by title
-            seen_titles = set()
-            unique = []
-            for r in all_results:
-                title_key = r.get("title", "").strip().lower()
-                if title_key and title_key not in seen_titles:
-                    seen_titles.add(title_key)
-                    unique.append(r)
-
-            elapsed = _t.time() - t0
-
-            if unique:
-                # 4. Format as a structured numbered reference list
-                lines = []
-                for i, r in enumerate(unique, 1):
-                    authors = ", ".join(r.get("authors", [])) if r.get("authors") else "Unknown"
-                    year = r.get("year", "n.d.")
-                    title = r.get("title", "Untitled")
-                    url = r.get("url", "")
-                    source = r.get("source", "")
-                    citations = r.get("citations")
-
-                    entry = f"[{i}] {authors}. {title}."
-                    if year:
-                        entry += f" ({year})."
-                    if source:
-                        entry += f" *{source}*."
-                    if citations and int(citations) > 0:
-                        entry += f" [{citations} citations]"
-                    if url:
-                        entry += f" {url}"
-                    lines.append(entry)
-
-                body = (
-                    "SUGGESTED REFERENCES\n\n"
-                    + "\n\n".join(lines)
-                    + f"\n\n— {len(unique)} relevant papers found from ArXiv & Semantic Scholar"
-                )
-                nl()
-                console.print(Panel(
-                    Markdown(body),
-                    title=f"[bold {T.SECONDARY}]/references suggest  ·  {elapsed:.1f}s[/]",
-                    border_style=T.DIM,
-                    padding=(1, 2),
-                ))
-                nl()
+                # Update agent run stats
+                if agent_obj:
+                    agent_obj.run_count += 1
+                    agent_obj.last_run = _t.time()
+                    self.studio.store.save_agent(agent_obj)
+                return
             else:
-                error_line("No relevant papers found. Check your internet connection and try again.")
-            return
+                # Section not found in the matched paper — warn and fall through
+                console.print(Text(
+                    f"  ⚠ Section '{agent_name}' not found in the matched paper. "
+                    f"Falling back to LLM generation…",
+                    style=T.WARNING,
+                ))
+
+        # ── 3. Special mode: /references "suggest" ────────────────────────
+        if agent_name == "references" and topic.lower() == "suggest":
+            paper_text, atoms, web_results = self._gather_smart_context(
+                agent_name, topic, input_type,
+            )
+            if atoms:
+                import time as _t
+                t0 = _t.time()
+
+                first_atoms_text = " ".join(
+                    a.get("text", "")[:200] for a in atoms[:5]
+                ).strip()
+                paper_title = ""
+                if self.rag and hasattr(self.rag, "meta"):
+                    paper_title = self.rag.meta.get("title", "")
+                if not paper_title and first_atoms_text:
+                    paper_title = first_atoms_text[:200]
+
+                console.print(Text(
+                    f"  Searching for references relevant to: {paper_title[:80]}…",
+                    style=T.MUTED,
+                ))
+
+                all_results = []
+                try:
+                    from agents.agent12_websearch import (
+                        _search_arxiv, _search_semantic_scholar
+                    )
+                    search_query = paper_title[:100] if paper_title else "research paper"
+
+                    with console.status(
+                        f"  [{T.MUTED}]Searching ArXiv…[/]",
+                        spinner="dots", spinner_style=T.PRIMARY,
+                    ):
+                        arxiv_results = _search_arxiv(search_query, max_results=15)
+                        all_results.extend(arxiv_results)
+
+                    with console.status(
+                        f"  [{T.MUTED}]Searching Semantic Scholar…[/]",
+                        spinner="dots", spinner_style=T.PRIMARY,
+                    ):
+                        ss_results = _search_semantic_scholar(search_query, max_results=15)
+                        all_results.extend(ss_results)
+                except Exception as e:
+                    error_line(f"Web search unavailable: {e}")
+
+                seen_titles = set()
+                unique = []
+                for r in all_results:
+                    title_key = r.get("title", "").strip().lower()
+                    if title_key and title_key not in seen_titles:
+                        seen_titles.add(title_key)
+                        unique.append(r)
+
+                elapsed = _t.time() - t0
+
+                if unique:
+                    lines = []
+                    for i, r in enumerate(unique, 1):
+                        authors = ", ".join(r.get("authors", [])) if r.get("authors") else "Unknown"
+                        year = r.get("year", "n.d.")
+                        title = r.get("title", "Untitled")
+                        url = r.get("url", "")
+                        source = r.get("source", "")
+                        citations = r.get("citations")
+
+                        entry = f"[{i}] {authors}. {title}."
+                        if year:
+                            entry += f" ({year})."
+                        if source:
+                            entry += f" *{source}*."
+                        if citations and int(citations) > 0:
+                            entry += f" [{citations} citations]"
+                        if url:
+                            entry += f" {url}"
+                        lines.append(entry)
+
+                    body = (
+                        "SUGGESTED REFERENCES\n\n"
+                        + "\n\n".join(lines)
+                        + f"\n\n— {len(unique)} relevant papers found from ArXiv & Semantic Scholar"
+                    )
+                    nl()
+                    console.print(Panel(
+                        Markdown(body),
+                        title=f"[bold {T.SECONDARY}]/references suggest  ·  {elapsed:.1f}s[/]",
+                        border_style=T.DIM,
+                        padding=(1, 2),
+                    ))
+                    nl()
+                else:
+                    error_line("No relevant papers found. Check your internet connection and try again.")
+                return
+
+        # ── 4. Fallback: gather context + LLM generation ──────────────────
+        paper_text, atoms, web_results = self._gather_smart_context(
+            agent_name, topic, input_type,
+        )
 
         result = self.studio.cmd_run_agent(
             command     = agent_name,
