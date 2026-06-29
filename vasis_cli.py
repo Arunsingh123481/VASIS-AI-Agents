@@ -2459,15 +2459,27 @@ class VasisCLI:
             smart_agent_runner = _smart_runner,
         )
 
-        if result.get("output_text"):
-            nl()
-            console.print(Panel(
-                Markdown(result["output_text"]),
-                title=f"[bold {T.SECONDARY}]loop: {loop_name}  ·  {result.get('elapsed_s', 0):.1f}s[/]",
-                border_style=T.DIM,
-                padding=(1, 2),
-            ))
-            nl()
+        if result.get("agent_results"):
+            # Build clean output from ONLY the loop's agent results
+            # (not the old cached paper_text that was used as context)
+            agent_results = result["agent_results"]
+            sections = []
+            for agent_id in (self.studio.store.get_loop(loop_name).agent_ids
+                             if self.studio.store.get_loop(loop_name) else []):
+                if agent_id in agent_results:
+                    section_title = agent_id.replace("_", " ").title()
+                    sections.append(f"## {section_title}\n\n{agent_results[agent_id]}")
+
+            if sections:
+                clean_output = "\n\n---\n\n".join(sections)
+                nl()
+                console.print(Panel(
+                    Markdown(clean_output),
+                    title=f"[bold {T.SECONDARY}]loop: {loop_name}  ·  {result.get('elapsed_s', 0):.1f}s  ·  \"{topic}\"[/]",
+                    border_style=T.DIM,
+                    padding=(1, 2),
+                ))
+                nl()
 
     def _cmd_exit(self):
         nl()
