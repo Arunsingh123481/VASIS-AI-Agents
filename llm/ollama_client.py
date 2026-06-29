@@ -56,7 +56,11 @@ def ask_llm(
             chat_kwargs = {
                 "model": model,
                 "messages": messages,
-                "options": {"temperature": temperature, "num_predict": 4096}
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": 4096,
+                    "num_ctx": 8192
+                }
             }
             if expect_json:
                 chat_kwargs["format"] = "json"

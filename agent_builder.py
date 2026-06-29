@@ -2168,22 +2168,29 @@ def _build_context(
     """
     parts = []
 
+    def clean_text(t: str) -> str:
+        # Remove unicode replacement char (caused by parsing errors)
+        t = t.replace("\uFFFD", "")
+        # Normalise double spaces / tabs
+        t = re.sub(r"[ \t]+", " ", t)
+        return t.strip()
+
     # Paper text (first 4000 chars)
     if paper_text:
-        parts.append(f"PAPER TEXT:\n{paper_text[:4000]}")
+        parts.append(f"PAPER TEXT:\n{clean_text(paper_text[:4000])}")
 
-    # Vault atoms — up to 60, ranked by BM25 relevance if caller sorted them
+    # Vault atoms — up to 25, ranked by BM25 relevance if caller sorted them
     if atoms:
         atom_text = "\n\n".join(
-            a.get('text', '').strip()
-            for a in atoms[:60]
+            clean_text(a.get('text', ''))
+            for a in atoms[:25]
         )
         parts.append(f"VAULT ATOMS:\n{atom_text}")
 
     # Web search results — up to 8
     if web_results:
         web_text = "\n".join(
-            f"[W{i+1}] {r.get('title','')} — {r.get('snippet','')[:200]}"
+            f"[W{i+1}] {clean_text(r.get('title',''))} — {clean_text(r.get('snippet',''))[:200]}"
             for i, r in enumerate(web_results[:8])
         )
         parts.append(f"WEB SOURCES:\n{web_text}")
