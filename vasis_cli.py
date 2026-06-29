@@ -2423,10 +2423,8 @@ class VasisCLI:
         # Strip quotes the user may have typed
         topic = topic.strip('"').strip("'").strip()
 
-        # Use "all" input type for loops — they benefit from maximum context
-        paper_text, atoms, web_results = self._gather_smart_context(
-            loop_name, topic, "all",
-        )
+        # ── Check if topic matches an indexed paper ─────────────────────
+        matched_rag = self._match_vault_paper(topic)
 
         # ── Build smart_agent_runner: tries direct extraction first ──────
         from agent_builder import _slugify, AGENT_BLUEPRINTS
@@ -2441,7 +2439,6 @@ class VasisCLI:
             if not is_paper_section:
                 return None
 
-            matched_rag = self._match_vault_paper(agent_topic)
             if not matched_rag:
                 return None
 
@@ -2449,6 +2446,21 @@ class VasisCLI:
                 agent_id, matched_rag
             )
             return section_text if section_text else None
+
+        if matched_rag:
+            # Topic matches an indexed paper → load paper context + atoms
+            paper_text, atoms, web_results = self._gather_smart_context(
+                loop_name, topic, "all",
+            )
+        else:
+            # Topic does NOT match any paper → web search only, no old paper
+            paper_text = ""
+            atoms = []
+            web_results = []
+            try:
+                web_results = self._dispatch_learn_crawl(topic)
+            except Exception:
+                pass
 
         result = self.studio.cmd_run_loop(
             loop_id            = loop_name,
