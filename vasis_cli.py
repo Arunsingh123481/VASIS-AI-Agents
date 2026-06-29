@@ -2040,7 +2040,8 @@ class VasisCLI:
 
     def _extract_abstract_from_text(self, raw_text: str) -> str:
         """Extract abstract section from raw text using regex boundaries."""
-        import re, textwrap
+        import re
+        import textwrap
         start_match = re.search(r"(?i)\babstract\b[^a-zA-Z0-9]*", raw_text)
         if not start_match:
             return ""
@@ -2086,7 +2087,8 @@ class VasisCLI:
         Within an already-matched tree node's text, refine extraction to just
         the target section by searching for heading boundaries.
         """
-        import re, textwrap
+        import re
+        import textwrap
 
         headings = self._SECTION_HEADINGS.get(agent_name)
         if not headings:
@@ -2177,8 +2179,8 @@ class VasisCLI:
                     search_start = int(len(sorted_atoms) * 0.65)
                     tail = sorted_atoms[search_start:]
                     for idx, atom in enumerate(tail):
-                        lines = [l.strip().lower() for l in atom.get("text", "").split("\n")]
-                        if any(l in ("references", "bibliography", "works cited", "citations") for l in lines):
+                        lines = [line.strip().lower() for line in atom.get("text", "").split("\n")]
+                        if any(line in ("references", "bibliography", "works cited", "citations") for line in lines):
                             bib_atoms = tail[idx:]
                             break
 
@@ -2428,7 +2430,7 @@ class VasisCLI:
         matched_rag = self._match_vault_paper(topic)
 
         # ── Build smart_agent_runner: tries direct extraction first ──────
-        from agent_builder import _slugify, AGENT_BLUEPRINTS
+        from agent_builder import AGENT_BLUEPRINTS
 
         def _smart_runner(agent_id: str, agent_topic: str):
             """

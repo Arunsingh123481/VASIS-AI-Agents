@@ -44,11 +44,10 @@ INTEGRATION
 import json
 import time
 import re
-import hashlib
 import os
 import tempfile
 from pathlib import Path
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import Optional, Callable
 
 
@@ -1585,7 +1584,7 @@ class AgentStudio:
                     )
                     continue
                 answers[q["key"]] = raw
-                self._p(f"  ✓  Recorded.\n", "success")
+                self._p("  ✓  Recorded.\n", "success")
                 break
 
         # ── map to the CustomAgent field names expected by cmd_build ──────────
@@ -2117,7 +2116,6 @@ class AgentStudio:
 
                 if smart_output:
                     # Direct extraction succeeded — use it (no LLM needed)
-                    import time as _t
                     accumulated_text += "\n\n" + smart_output
                     all_results[agent_id] = smart_output
                     self._p(
@@ -2304,7 +2302,8 @@ def rich_print_fn(console):
 # =============================================================================
 
 if __name__ == "__main__":
-    import tempfile, shutil
+    import tempfile
+    import shutil
 
     tmp = Path(tempfile.mkdtemp()) / "test_studio.json"
     logs = []

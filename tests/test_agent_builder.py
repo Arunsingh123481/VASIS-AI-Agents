@@ -5,9 +5,6 @@ Run with: python -m pytest tests/test_agent_builder.py -v
 
 import sys
 import os
-import tempfile
-import shutil
-from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -20,10 +17,7 @@ from agent_builder import (
     detect_blueprint,
     validate_research_relevance,
     domain_ordered_citations,
-    format_citation_options,
     generate_system_prompt,
-    AGENT_BLUEPRINTS,
-    BLUEPRINT_ALIASES,
     FIXED_AGENTS,
 )
 
