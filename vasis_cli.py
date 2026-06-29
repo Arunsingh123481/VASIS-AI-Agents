@@ -1975,6 +1975,106 @@ class VasisCLI:
                 error_line("No bibliography entries found in the indexed document.")
             return
 
+        # ── Suggest mode: find references FOR an unpublished paper ────
+        # When the user has a draft without a bibliography, search ArXiv
+        # and Semantic Scholar for papers they should cite.
+        if agent_name == "references" and topic.lower() == "suggest" and atoms:
+            import time as _t
+            t0 = _t.time()
+
+            # 1. Extract the paper's title and key topics from first atoms
+            first_atoms_text = " ".join(
+                a.get("text", "")[:200] for a in atoms[:5]
+            ).strip()
+            # Use the paper title if available, otherwise first 200 chars
+            paper_title = ""
+            if self.rag and hasattr(self.rag, "meta"):
+                paper_title = self.rag.meta.get("title", "")
+            if not paper_title and first_atoms_text:
+                paper_title = first_atoms_text[:200]
+
+            console.print(Text(
+                f"  Searching for references relevant to: {paper_title[:80]}…",
+                style=T.MUTED,
+            ))
+
+            # 2. Search academic sources via Agent 12
+            all_results = []
+            try:
+                from agents.agent12_websearch import (
+                    _search_arxiv, _search_semantic_scholar
+                )
+
+                # Search with paper title / key topic
+                search_query = paper_title[:100] if paper_title else "research paper"
+
+                with console.status(
+                    f"  [{T.MUTED}]Searching ArXiv…[/]",
+                    spinner="dots", spinner_style=T.PRIMARY,
+                ):
+                    arxiv_results = _search_arxiv(search_query, max_results=15)
+                    all_results.extend(arxiv_results)
+
+                with console.status(
+                    f"  [{T.MUTED}]Searching Semantic Scholar…[/]",
+                    spinner="dots", spinner_style=T.PRIMARY,
+                ):
+                    ss_results = _search_semantic_scholar(search_query, max_results=15)
+                    all_results.extend(ss_results)
+
+            except Exception as e:
+                error_line(f"Web search unavailable: {e}")
+
+            # 3. Deduplicate by title
+            seen_titles = set()
+            unique = []
+            for r in all_results:
+                title_key = r.get("title", "").strip().lower()
+                if title_key and title_key not in seen_titles:
+                    seen_titles.add(title_key)
+                    unique.append(r)
+
+            elapsed = _t.time() - t0
+
+            if unique:
+                # 4. Format as a structured numbered reference list
+                lines = []
+                for i, r in enumerate(unique, 1):
+                    authors = ", ".join(r.get("authors", [])) if r.get("authors") else "Unknown"
+                    year = r.get("year", "n.d.")
+                    title = r.get("title", "Untitled")
+                    url = r.get("url", "")
+                    source = r.get("source", "")
+                    citations = r.get("citations")
+
+                    entry = f"[{i}] {authors}. {title}."
+                    if year:
+                        entry += f" ({year})."
+                    if source:
+                        entry += f" *{source}*."
+                    if citations and int(citations) > 0:
+                        entry += f" [{citations} citations]"
+                    if url:
+                        entry += f" {url}"
+                    lines.append(entry)
+
+                body = (
+                    "SUGGESTED REFERENCES\n\n"
+                    + "\n\n".join(lines)
+                    + f"\n\n— {len(unique)} relevant papers found from ArXiv & Semantic Scholar"
+                )
+                nl()
+                console.print(Panel(
+                    Markdown(body),
+                    title=f"[bold {T.SECONDARY}]/references suggest  ·  {elapsed:.1f}s[/]",
+                    border_style=T.DIM,
+                    padding=(1, 2),
+                ))
+                nl()
+            else:
+                error_line("No relevant papers found. Check your internet connection and try again.")
+            return
+
         result = self.studio.cmd_run_agent(
             command     = agent_name,
             topic       = topic,
